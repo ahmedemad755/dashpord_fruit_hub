@@ -34,8 +34,11 @@ class SupabaseStorgeService implements StorgeService {
   @override
   Future<String?> uploadImage(File file, String path) async {
     try {
+      // تعديل هنا: إضافة الوقت الحالي لاسم الملف لجعله فريداً
+      final String uniqueId = DateTime.now().millisecondsSinceEpoch.toString();
       final fileName = b.basename(file.path);
-      final filePath = '$path/$fileName';
+      final filePath =
+          '$path/${uniqueId}_$fileName'; // دمج المعرف الفريد مع الاسم
 
       await Supabase.instance.client.storage
           .from(supabaseBucketName)

@@ -12,7 +12,11 @@ class CustomTextFormField extends StatelessWidget {
     this.controller,
     this.onSaved,
     this.obscureText = false,
+    this.validator,
+    this.readOnly = false,
+    this.onTap,
   });
+
   final String hintText;
   final TextInputType textInputType;
   final TextEditingController? controller;
@@ -20,37 +24,56 @@ class CustomTextFormField extends StatelessWidget {
   final void Function(String?)? onSaved;
   final bool obscureText;
   final int? maxLines;
+  final String? Function(String?)? validator;
+  final bool readOnly;
+  final void Function()? onTap;
+
   @override
   Widget build(BuildContext context) {
     return TextFormField(
       controller: controller,
       obscureText: obscureText,
       onSaved: onSaved,
-      validator: (value) {
-        if (value == null || value.isEmpty) {
-          return 'هذا الحقل مطلوب';
-        }
-        return null;
-      },
+      validator: validator ??
+          (value) {
+            if (value == null || value.trim().isEmpty) {
+              return 'هذا الحقل مطلوب';
+            }
+            return null;
+          },
       keyboardType: textInputType,
+      readOnly: readOnly,
+      onTap: onTap,
+      cursorColor: Colors.teal, // تغيير لون المؤشر
+      style: TextStyles.regular13.copyWith(color: Colors.black87),
       decoration: InputDecoration(
         suffixIcon: suffixIcon,
-        hintStyle: TextStyles.bold13.copyWith(color: const Color(0xFF949D9E)),
         hintText: hintText,
+        hintStyle: TextStyles.regular13.copyWith(color: Colors.grey.shade500),
         filled: true,
-        fillColor: const Color(0xFFF9FAFA),
-        border: buildBorder(),
-        enabledBorder: buildBorder(),
-        focusedBorder: buildBorder(),
+        fillColor: Colors.grey.shade100, // خلفية خفيفة
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 14,
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(8),
+          borderSide: BorderSide(color: Colors.grey.shade300, width: 1.5),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(8),
+          borderSide: const BorderSide(color: Colors.teal, width: 2),
+        ),
+        errorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(8),
+          borderSide: const BorderSide(color: Colors.red, width: 1.5),
+        ),
+        focusedErrorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(8),
+          borderSide: const BorderSide(color: Colors.red, width: 2),
+        ),
       ),
-      maxLines: maxLines,
-    );
-  }
-
-  OutlineInputBorder buildBorder() {
-    return OutlineInputBorder(
-      borderRadius: BorderRadius.circular(4),
-      borderSide: const BorderSide(width: 1, color: Color(0xFFE6E9E9)),
+      maxLines: maxLines ?? 1,
     );
   }
 }

@@ -31,7 +31,7 @@ class AddProductViewBodyBlocbuilder extends StatelessWidget {
       builder: (context, state) {
         return CustomProgresIndecatorHUD(
           isLoading: state is AddProductLoading,
-          child: AddProductbody(),
+          child: AddProductBody(),
         );
       },
     );

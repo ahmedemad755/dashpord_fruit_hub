@@ -13,18 +13,25 @@ class DashBoardBody extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.center,
 
         children: [
-          CustomButton(
+          GradientButton(
             onPressed: () {
               Navigator.pushNamed(context, AppRoutes.addProduct);
             },
-            text: "Add Data",
+            label: "Add Data",
           ),
           const SizedBox(height: 16),
-          CustomButton(
+          GradientButton(
             onPressed: () {
               Navigator.pushNamed(context, AppRoutes.orders);
             },
-            text: "view Orders",
+            label: "view Orders",
+          ),
+          const SizedBox(height: 16),
+          GradientButton(
+            onPressed: () {
+              Navigator.pushNamed(context, AppRoutes.DashboardAnalytics);
+            },
+            label: "DashboardAnalytics",
           ),
         ],
       ),

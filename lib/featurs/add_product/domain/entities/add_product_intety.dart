@@ -11,11 +11,15 @@ class AddProductIntety {
   String? imageurl;
   final int expirationDate;
   final int unitAmount;
-  final bool isOrganic;
-  final num numberOfcalories;
   final num averageRating;
   final int ratingcount;
   final List<ReviewEntite> reviews;
+
+  // الحقول الجديدة المضافة للتحسين
+  final bool hasDiscount;
+  final num discountPercentage;
+  final String? pharmacyId; // لربط المنتج بالصيدلية
+  final bool isAvailable;
 
   AddProductIntety({
     required this.name,
@@ -26,10 +30,25 @@ class AddProductIntety {
     this.imageurl,
     required this.expirationDate,
     required this.unitAmount,
-    this.isOrganic = false,
-    required this.numberOfcalories,
     this.averageRating = 0,
     this.ratingcount = 0,
     required this.reviews,
+    this.hasDiscount = false,
+    this.discountPercentage = 0,
+    this.pharmacyId,
+    this.isAvailable = true,
   });
+
+  DateTime get expirationDateTime => DateTime(
+    expirationDate ~/ 10000,
+    (expirationDate % 10000) ~/ 100,
+    expirationDate % 100,
+  );
+
+  String get formattedExpirationDate =>
+      "${expirationDateTime.day}-${expirationDateTime.month}-${expirationDateTime.year}";
+
+  // حساب السعر النهائي بعد الخصم
+  num get finalPrice =>
+      hasDiscount ? price - (price * (discountPercentage / 100)) : price;
 }

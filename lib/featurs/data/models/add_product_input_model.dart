@@ -10,14 +10,19 @@ class AddProductInputModel {
   final String description;
   final String? imageurl;
   final File image;
-  final bool isOrganic;
-  final num numberOfcalories;
   final num averageRating;
   final int ratingcount;
   final int expirationDate;
   final num sellingcount;
   final int unitAmount;
   final List<ReviewModel> reviews;
+
+  // الحقول الجديدة
+  final bool hasDiscount;
+  final num discountPercentage;
+  final String? pharmacyId;
+  final bool isAvailable;
+
   AddProductInputModel({
     required this.name,
     required this.price,
@@ -25,14 +30,16 @@ class AddProductInputModel {
     required this.description,
     this.imageurl,
     required this.image,
-    this.isOrganic = false,
-    this.numberOfcalories = 0,
     this.averageRating = 0,
     this.ratingcount = 0,
     required this.expirationDate,
     required this.unitAmount,
     required this.reviews,
     this.sellingcount = 0,
+    this.hasDiscount = false,
+    this.discountPercentage = 0,
+    this.pharmacyId,
+    this.isAvailable = true,
   });
 
   factory AddProductInputModel.fromentity(AddProductIntety addProductIntety) {
@@ -43,8 +50,6 @@ class AddProductInputModel {
       description: addProductIntety.description,
       imageurl: addProductIntety.imageurl,
       image: addProductIntety.image,
-      isOrganic: addProductIntety.isOrganic,
-      numberOfcalories: addProductIntety.numberOfcalories,
       averageRating: addProductIntety.averageRating,
       ratingcount: addProductIntety.ratingcount,
       expirationDate: addProductIntety.expirationDate,
@@ -52,8 +57,13 @@ class AddProductInputModel {
       reviews: addProductIntety.reviews
           .map((e) => ReviewModel.fromentity(e))
           .toList(),
+      hasDiscount: addProductIntety.hasDiscount,
+      discountPercentage: addProductIntety.discountPercentage,
+      pharmacyId: addProductIntety.pharmacyId,
+      isAvailable: addProductIntety.isAvailable,
     );
   }
+
   Map<String, dynamic> toJson() {
     return {
       'name': name,
@@ -62,13 +72,15 @@ class AddProductInputModel {
       'code': code,
       'description': description,
       'imageurl': imageurl,
-      'isOrganic': isOrganic,
-      'numberOfcalories': numberOfcalories,
       'averageRating': averageRating,
       'ratingcount': ratingcount,
       'expirationDate': expirationDate,
       'unitAmount': unitAmount,
       'reviews': reviews.map((e) => e.toJson()).toList(),
+      'hasDiscount': hasDiscount,
+      'discountPercentage': discountPercentage,
+      'pharmacyId': pharmacyId,
+      'isAvailable': isAvailable,
     };
   }
 }

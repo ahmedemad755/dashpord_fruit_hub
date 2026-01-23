@@ -14,17 +14,21 @@ class ProductRepoImp implements ProductRepo {
 
   @override
   Future<Either<Faliur, String>> addProduct(
-    AddProductIntety addProductIntety,
-  ) async {
+    AddProductIntety addProductIntety, {
+    String? documentId, // 👈 استلام الـ ID الجديد هنا
+  }) async {
     try {
+      // التعديل هنا: نستخدم documentId الممرر (الذي يحتوي على الكود + الصيدلية)
+      // وإذا كان null (لأي سبب) نستخدم الكود الأصلي كاحتياط
+      final String finalDocId = documentId ?? addProductIntety.code;
+
       await fireStoreService.firestore
-          .collection("products") // 👈 اسم الكولكشن في Firestore
-          .doc(addProductIntety.code) // 👈 الـ documentId = كود المنتج
+          .collection("products")
+          .doc(finalDocId) // 👈 تم التغيير من .doc(addProductIntety.code)
           .set(AddProductInputModel.fromentity(addProductIntety).toJson());
 
       return right("✅ Product added successfully to Firestore");
     } catch (e, stack) {
-      // اطبع الرسالة كاملة في اللوج
       log(
         "❌ Firestore Add Error: $e",
         name: "ProductRepoImp",

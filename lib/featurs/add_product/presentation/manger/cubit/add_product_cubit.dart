@@ -14,7 +14,11 @@ class AddProductCubit extends Cubit<AddProductState> {
   final ImagRepo imagRepo;
   final ProductRepo productRepo;
 
-  Future<void> addProduct(AddProductIntety addProductIntety) async {
+  // أضفنا documentId كبراميتر اختياري هنا
+  Future<void> addProduct(
+    AddProductIntety addProductIntety, {
+    String? documentId,
+  }) async {
     emit(AddProductLoading());
 
     // 1️⃣ ارفع الصورة
@@ -28,8 +32,12 @@ class AddProductCubit extends Cubit<AddProductState> {
         // 2️⃣ حدّث الـ entity باللينك الجديد
         addProductIntety.imageurl = imageUrl;
 
-        // 3️⃣ خزّن المنتج في Firestore
-        final productResult = await productRepo.addProduct(addProductIntety);
+        // 3️⃣ خزّن المنتج في Firestore مع تمرير الـ ID الفريد
+        // ملاحظة: تأكد أن ميثود addProduct في الـ productRepo تقبل الـ documentId
+        final productResult = await productRepo.addProduct(
+          addProductIntety,
+          documentId: documentId,
+        );
 
         productResult.fold(
           (failure) {
