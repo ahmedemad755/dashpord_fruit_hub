@@ -17,21 +17,39 @@ class DashBoardBody extends StatelessWidget {
             onPressed: () {
               Navigator.pushNamed(context, AppRoutes.addProduct);
             },
-            label: "Add Data",
+            label: "إضافة منتج جديد",
           ),
           const SizedBox(height: 16),
           GradientButton(
             onPressed: () {
               Navigator.pushNamed(context, AppRoutes.orders);
             },
-            label: "view Orders",
+            label: "عرض طلبات العملاء",
           ),
           const SizedBox(height: 16),
           GradientButton(
             onPressed: () {
               Navigator.pushNamed(context, AppRoutes.DashboardAnalytics);
             },
-            label: "DashboardAnalytics",
+            label: "التحليلات والإحصائيات",
+          ),
+
+          const SizedBox(height: 16),
+
+          GradientButton(
+            onPressed: () {
+              Navigator.pushNamed(context, AppRoutes.productsCategory);
+            },
+            label: "عرض المنتجات حسب التصنيف",
+          ),
+
+          const SizedBox(height: 16),
+
+          GradientButton(
+            onPressed: () {
+              Navigator.pushNamed(context, AppRoutes.bannersManagement);
+            },
+            label: "إدارة عروض السلايدر",
           ),
         ],
       ),

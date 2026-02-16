@@ -33,8 +33,8 @@ class OrderModel {
       date: json['date'] is Timestamp
           ? (json['date'] as Timestamp).toDate()
           : json['date'] is String
-          ? DateTime.tryParse(json['date'])
-          : null,
+              ? DateTime.tryParse(json['date'].toString().replaceFirst(' ', 'T'))
+              : null,
       status: json['status']?.toString() ?? 'pending',
       totalPrice: (json['totalPrice'] as num?)?.toDouble() ?? 0.0,
       uId: json['uId']?.toString() ?? '',
@@ -43,8 +43,7 @@ class OrderModel {
             ? Map<String, dynamic>.from(json['shippingAddressModel'])
             : <String, dynamic>{},
       ),
-      orderProducts:
-          (json['orderProducts'] as List<dynamic>?)
+      orderProducts: (json['orderProducts'] as List<dynamic>?)
               ?.map<OrderProductModel>(
                 (e) => OrderProductModel.fromJson(
                   Map<String, dynamic>.from(e as Map),
@@ -120,6 +119,6 @@ class OrderModel {
     return OrderStatus.values.firstWhere((e) {
       var enumStatus = e.name.toString();
       return enumStatus == (status ?? 'pending');
-    });
+    }, orElse: () => OrderStatus.pending);
   }
 }

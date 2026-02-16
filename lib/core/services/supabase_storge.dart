@@ -57,4 +57,15 @@ class SupabaseStorgeService implements StorgeService {
       return null;
     }
   }
+
+  @override
+  Future<void> deleteFile(String path) async {
+    try {
+      await Supabase.instance.client.storage.from(supabaseBucketName).remove([
+        path,
+      ]);
+    } catch (e) {
+      print('❌ Error deleting file from Supabase: $e');
+    }
+  }
 }

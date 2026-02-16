@@ -24,7 +24,7 @@ class OrderActionButtons extends StatelessWidget {
                 orderID: orderEntity.orderID,
               );
             },
-            child: const Text('Accept'),
+            child: const Text('تاكيد'),
           ),
         ),
         Visibility(
@@ -41,7 +41,7 @@ class OrderActionButtons extends StatelessWidget {
               foregroundColor: Colors.white,
               backgroundColor: Colors.red, // Optional: خلي لون الزر أحمر
             ),
-            child: const Text('Reject'),
+            child: const Text('رفض'),
           ),
         ),
 
@@ -54,7 +54,7 @@ class OrderActionButtons extends StatelessWidget {
                 orderID: orderEntity.orderID,
               );
             },
-            child: const Text('Delivered'),
+            child: const Text('تم التوصيل'),
           ),
         ),
       ],

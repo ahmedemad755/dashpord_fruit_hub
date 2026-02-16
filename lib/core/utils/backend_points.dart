@@ -3,7 +3,10 @@ class BackendPoints {
   static const addUserData = 'user';
   static const getUserData = 'user';
   static const isUserexist = 'user';
-  static const addProduct = 'product';
+  static const addProduct = 'products';
   static const getOrders = 'orders';
   static const updateOrder = 'orders';
+  static const getCategories = 'categories';
+  static const banners = 'banners'; // الكولكشن الخاص بالعروض
+  static const bannersImages = 'banners_images';
 }

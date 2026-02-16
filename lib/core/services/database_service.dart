@@ -33,4 +33,10 @@ abstract class DatabaseService {
     required String documentId,
     required Map<String, dynamic> data,
   });
+
+  // أضف هذه الدالة في الـ Abstract class
+Future<void> deleteData({
+  required String path,
+  required String documentId,
+});
 }

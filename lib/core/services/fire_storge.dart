@@ -20,4 +20,9 @@ class FireStorge implements StorgeService {
       return downloadimageUrl;
     });
   }
+
+  @override
+  Future<void> deleteFile(String path) async {
+    await storgerefrance.child(path).delete();
+  }
 }

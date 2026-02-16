@@ -4,6 +4,7 @@ import 'package:dartz/dartz.dart';
 import 'package:fruitesdashboard/core/errors/faliur.dart';
 import 'package:fruitesdashboard/core/repos/product_repo/product_repo.dart';
 import 'package:fruitesdashboard/core/services/cloud_fire_store_service.dart';
+import 'package:fruitesdashboard/core/utils/backend_points.dart';
 import 'package:fruitesdashboard/featurs/add_product/domain/entities/add_product_intety.dart';
 import 'package:fruitesdashboard/featurs/data/models/add_product_input_model.dart';
 
@@ -23,7 +24,7 @@ class ProductRepoImp implements ProductRepo {
       final String finalDocId = documentId ?? addProductIntety.code;
 
       await fireStoreService.firestore
-          .collection("products")
+          .collection(BackendPoints.addProduct)
           .doc(finalDocId) // 👈 تم التغيير من .doc(addProductIntety.code)
           .set(AddProductInputModel.fromentity(addProductIntety).toJson());
 

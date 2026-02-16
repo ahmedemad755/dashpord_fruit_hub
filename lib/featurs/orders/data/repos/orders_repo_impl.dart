@@ -16,18 +16,17 @@ class OrdersRepoImpl implements OrdersRepo {
   @override
   Stream<Either<Faliur, List<OrderEntity>>> fetchOrders() async* {
     try {
-      await for (var (data as List<Map<String, dynamic>>)
-          in _dataService.getDataStream(path: BackendPoints.getOrders)) {
-        final List<OrderEntity> orders = (data as List<dynamic>)
-            .map<OrderEntity>((e) => OrderModel.fromJson(e).toEntity())
-            .toList();
-        print("📌 Raw orders data: $data");
+      await for (var snapshot in _dataService.getDataStream(path: BackendPoints.getOrders)) {
+        final List<dynamic> data = snapshot as List<dynamic>;
+        final List<OrderEntity> orders = data.map<OrderEntity>((e) {
+          return OrderModel.fromJson(Map<String, dynamic>.from(e as Map)).toEntity();
+        }).toList();
+        
         yield Right(orders);
-        // debug
       }
     } catch (e) {
       print("🔥 FetchOrders Error: $e");
-      yield Left(ServerFaliur('Failed to fetch orders'));
+      yield Left(ServerFaliur('Failed to fetch orders: ${e.toString()}'));
     }
   }
 
