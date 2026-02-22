@@ -1,10 +1,11 @@
 import 'package:bloc/bloc.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:fruitesdashboard/featurs/auth/data/repos/auth_repo.dart';
+import 'package:fruitesdashboard/featurs/auth/data/repos/pharmacy_repo/pharmacy_auth_repo.dart';
 import 'package:fruitesdashboard/featurs/auth/presentation/cubits/vereficationotp/vereficationotp_state.dart';
 
 class OTPCubit extends Cubit<OTPState> {
-  final AuthRepo authRepo;
+  final PharmacyAuthRepo authRepo;
+
   String? currentPhoneNumber;
   String? verificationId;
   String? lastSmsCode;

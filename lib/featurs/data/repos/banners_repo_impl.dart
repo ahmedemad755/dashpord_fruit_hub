@@ -21,7 +21,7 @@ class BannersRepoImpl implements BannersRepo {
     File image,
   ) async {
     try {
-      // 1. رفع الصورة أولاً والحصول على الرابط
+      // 1. رفع الصورة إلى Storage
       String? imageUrl = await storgeService.uploadImage(
         image,
         BackendPoints.bannersImages,
@@ -31,9 +31,11 @@ class BannersRepoImpl implements BannersRepo {
         return Left(ServerFaliur('فشل في رفع الصورة، يرجى المحاولة لاحقاً'));
       }
 
-      // 2. تحويل الـ Entity لـ Model وتحديث رابط الصورة والـ ID
+      // 2. توليد ID فريد للمستند (Timestamp بالملي ثانية لضمان التفرد)
+      String docId = DateTime.now().millisecondsSinceEpoch.toString();
+
       final bannerModel = BannerModel(
-        id: '', // Firestore هيعمل ID تلقائي لو استخدمنا addData بطريقة معينة أو ننشئه هنا
+        id: docId,
         imageUrl: imageUrl,
         targetId: banner.targetId,
         linkType: banner.linkType,
@@ -41,18 +43,18 @@ class BannersRepoImpl implements BannersRepo {
         createdAt: banner.createdAt,
       );
 
-      // 3. حفظ البيانات في Firestore
-      // ملحوظة: لو عاوز تستخدم الـ ID بتاع Firestore كـ Document ID:
+      // 3. حفظ البيانات في قاعدة البيانات مع الـ ID المولد
       await databaseService.addData(
         path: BackendPoints.banners,
         data: bannerModel.toJson(),
-        documentId: DateTime.now().millisecondsSinceEpoch
-            .toString(), // أو أي UUID
+        documentId: docId,
       );
 
       return const Right(null);
     } catch (e) {
-      return Left(ServerFaliur(e.toString()));
+      return Left(
+        ServerFaliur('عذراً، حدث خطأ أثناء إضافة العرض: ${e.toString()}'),
+      );
     }
   }
 
@@ -60,16 +62,19 @@ class BannersRepoImpl implements BannersRepo {
   Future<Either<Faliur, List<BannerEntity>>> getBanners() async {
     try {
       final data =
-          await databaseService.getData(
-                path: BackendPoints.banners,
-                query: {'orderBy': 'created_at', 'descending': true},
-              )
+          await databaseService.getData(path: BackendPoints.banners)
               as List<Map<String, dynamic>>;
 
-      // تحويل القائمة لـ Entities
-      // ملاحظة: الـ FireStoreService عندك بيرجع الداتا، محتاجين نضمن وصول الـ ID
-      // لو الـ ID مش جوه الـ map، يفضل تعديل getData لترجع الـ ID أيضاً
-      final banners = data.map((e) => BannerModel.fromJson(e, '')).toList();
+      // تحويل البيانات القادمة إلى List من BannerEntity
+      final banners = data.map((e) {
+        // نأخذ الـ ID المخزن في الحقل 'id' داخل المستند
+        String fetchedId =
+            e['id']?.toString() ?? e['documentId']?.toString() ?? '';
+        return BannerModel.fromJson(e, fetchedId);
+      }).toList();
+
+      // ترتيب العروض بحيث تظهر الأحدث أولاً
+      banners.sort((a, b) => b.createdAt.compareTo(a.createdAt));
 
       return Right(banners);
     } catch (e) {
@@ -80,21 +85,28 @@ class BannersRepoImpl implements BannersRepo {
   @override
   Future<Either<Faliur, void>> deleteBanner(BannerEntity banner) async {
     try {
-      // 1. حذف البيانات من Firestore
+      // التحقق الأمني من الـ ID
+      if (banner.id.isEmpty) {
+        return Left(ServerFaliur('لا يمكن إتمام الحذف: معرف العرض مفقود'));
+      }
+
+      // 1. حذف المستند من قاعدة البيانات (الأولوية للبيانات)
       await databaseService.deleteData(
         path: BackendPoints.banners,
         documentId: banner.id,
       );
 
-      // 2. حذف الصورة من الـ Storage
-      // ملاحظة: الـ deleteFile بيحتاج الـ Full Path أو الـ URL حسب تنفيذك
-      await storgeService.deleteFile(
-        banner.imageUrl,
-      ); // لو بتستخدم الـ URL مباشرة محتاج معالجة
+      // 2. محاولة حذف الملف من Storage (اختياري)
+      try {
+        await storgeService.deleteFile(banner.imageUrl);
+      } catch (storageError) {
+        // لا نعيد Failure هنا لأن البيانات حُذفت بالفعل من قاعدة البيانات
+        print("Storage deletion warning: $storageError");
+      }
 
       return const Right(null);
     } catch (e) {
-      return Left(ServerFaliur('فشل في الحذف: ${e.toString()}'));
+      return Left(ServerFaliur('حدث خطأ أثناء محاولة الحذف من السيرفر'));
     }
   }
 
@@ -111,7 +123,7 @@ class BannersRepoImpl implements BannersRepo {
       );
       return const Right(null);
     } catch (e) {
-      return Left(ServerFaliur('فشل في تحديث الحالة'));
+      return Left(ServerFaliur('فشل في تحديث حالة العرض'));
     }
   }
 }

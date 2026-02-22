@@ -10,10 +10,12 @@ class BannersListView extends StatelessWidget {
   Widget build(BuildContext context) {
     return BlocBuilder<BannersCubit, BannersState>(
       builder: (context, state) {
+        // حالة التحميل
         if (state is GetBannersLoading) {
           return const Center(child: CircularProgressIndicator());
         }
 
+        // حالة النجاح (عرض القائمة)
         if (state is GetBannersSuccess) {
           final banners = state.banners;
 
@@ -44,8 +46,10 @@ class BannersListView extends StatelessWidget {
                           width: 80,
                           height: 50,
                           fit: BoxFit.cover,
-                          errorBuilder: (_, __, ___) =>
-                              const Icon(Icons.broken_image),
+                          errorBuilder: (_, __, ___) => const Icon(
+                            Icons.broken_image,
+                            color: Colors.grey,
+                          ),
                         ),
                       ),
                       const SizedBox(width: 16),
@@ -88,8 +92,23 @@ class BannersListView extends StatelessWidget {
           );
         }
 
+        // حالة الفشل
         if (state is GetBannersFailure) {
-          return Center(child: Text(state.errMessage));
+          return Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(
+                  state.errMessage,
+                  textAlign: TextAlign.center,
+                ), // تم التأكد من المسمى هنا
+                TextButton(
+                  onPressed: () => context.read<BannersCubit>().getBanners(),
+                  child: const Text("إعادة المحاولة"),
+                ),
+              ],
+            ),
+          );
         }
 
         return const SizedBox();
@@ -97,10 +116,13 @@ class BannersListView extends StatelessWidget {
     );
   }
 
-  // دالة إظهار نافذة التأكيد
   void _showDeleteDialog(BuildContext context, BannerEntity banner) {
+    final bannersCubit = context.read<BannersCubit>();
+
     showDialog(
       context: context,
+      barrierDismissible:
+          false, // منع إغلاق النافذة بالضغط خارجها أثناء العملية
       builder: (dialogContext) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: const Row(
@@ -111,7 +133,7 @@ class BannersListView extends StatelessWidget {
           ],
         ),
         content: const Text(
-          "هل أنت متأكد من حذف هذا العرض؟ سيتم حذفه من التطبيق ومن قاعدة البيانات نهائياً.",
+          "هل أنت متأكد من حذف هذا العرض؟ سيتم حذفه نهائياً من قاعدة البيانات والصور.",
         ),
         actions: [
           TextButton(
@@ -126,11 +148,18 @@ class BannersListView extends StatelessWidget {
               ),
             ),
             onPressed: () {
-              context.read<BannersCubit>().deleteBanner(banner);
+              // تنفيذ الحذف باستخدام الكائن كاملاً
+              bannersCubit.deleteBanner(banner);
+
               Navigator.pop(dialogContext);
-              ScaffoldMessenger.of(
-                context,
-              ).showSnackBar(const SnackBar(content: Text("جاري الحذف...")));
+
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text("جاري معالجة طلب الحذف..."),
+                  backgroundColor: Colors.black87,
+                  duration: Duration(seconds: 2),
+                ),
+              );
             },
             child: const Text(
               "حذف الآن",

@@ -10,33 +10,35 @@ class BannerModel extends BannerEntity {
     required super.createdAt,
   });
 
-  // تحويل البيانات من Firestore JSON إلى Model
+  // تحويل البيانات من JSON إلى Model
   factory BannerModel.fromJson(Map<String, dynamic> json, String documentId) {
     return BannerModel(
-      id: documentId,
+      // نأخذ الـ ID من الحقل المخزن في الـ Json، وإذا لم يوجد نستخدم documentId الممرر
+      id: json['id']?.toString() ?? documentId,
       imageUrl: json['image_url'] ?? '',
       targetId: json['target_id'],
       linkType: json['link_type'] ?? 'none',
       isActive: json['is_active'] ?? true,
       createdAt: json['created_at'] != null
-          ? (json['created_at'] as dynamic).toDate()
+          ? (json['created_at'] is String
+                ? DateTime.parse(json['created_at'])
+                : json['created_at'].toDate())
           : DateTime.now(),
     );
   }
 
-  // تحويل الـ Entity إلى JSON لحفظه في Firestore
+  // تحويل الـ Entity إلى JSON لحفظه
   Map<String, dynamic> toJson() {
     return {
+      'id': id, // مهم جداً حفظ الـ ID داخل الوثيقة لسهولة استرجاعه
       'image_url': imageUrl,
       'target_id': targetId,
       'link_type': linkType,
       'is_active': isActive,
-      'created_at':
-          createdAt, // Firestore بيحول الـ DateTime لـ Timestamp تلقائياً
+      'created_at': createdAt,
     };
   }
 
-  // دالة لتحويل الـ Entity لـ Model لو احتاجنا نرفعه
   factory BannerModel.fromEntity(BannerEntity entity) {
     return BannerModel(
       id: entity.id,

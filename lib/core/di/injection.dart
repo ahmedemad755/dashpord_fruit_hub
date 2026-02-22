@@ -7,11 +7,11 @@ import 'package:fruitesdashboard/core/services/database_service.dart';
 import 'package:fruitesdashboard/core/services/firebase_auth_service.dart';
 import 'package:fruitesdashboard/core/services/storge_service.dart';
 import 'package:fruitesdashboard/core/services/supabase_storge.dart';
-import 'package:fruitesdashboard/featurs/auth/data/repos/auth_repo.dart';
-import 'package:fruitesdashboard/featurs/auth/data/repos/auth_repo_impl.dart';
-import 'package:fruitesdashboard/featurs/auth/presentation/cubits/login/login_cubit.dart';
-import 'package:fruitesdashboard/featurs/auth/presentation/cubits/signup/sugnup_cubit.dart';
-import 'package:fruitesdashboard/featurs/auth/presentation/cubits/vereficationotp/vereficationotp_cubit.dart'; // ✅ أضف هذا المسار لـ OTP
+import 'package:fruitesdashboard/featurs/auth/data/repos/pharmacy_repo/pharmacy_auth_repo.dart';
+import 'package:fruitesdashboard/featurs/auth/data/repos/pharmacy_repo/pharmacy_auth_repo_impl.dart';
+import 'package:fruitesdashboard/featurs/auth/presentation/cubits/login/pharmacy_login_cubit.dart';
+import 'package:fruitesdashboard/featurs/auth/presentation/cubits/signup/pharmacy_signup_cubit.dart';
+import 'package:fruitesdashboard/featurs/auth/presentation/cubits/vereficationotp/vereficationotp_cubit.dart';
 import 'package:fruitesdashboard/featurs/banners/manger/cubit/banners_cubit.dart';
 import 'package:fruitesdashboard/featurs/data/repos/banners_repo.dart';
 import 'package:fruitesdashboard/featurs/data/repos/banners_repo_impl.dart';
@@ -35,35 +35,28 @@ void setupGetIt() {
   getIt.registerSingleton<DatabaseService>(fireStoreService);
 
   // ---------------------------
-  // 2️⃣ Repositories (Auth & Others)
+  // 2️⃣ Repositories (Pharmacy Auth)
   // ---------------------------
-
-  // تسجيل الـ AuthRepo الأساسي
-  getIt.registerSingleton<AuthRepo>(
-    AuthRepoImpl(
+  getIt.registerSingleton<PharmacyAuthRepo>(
+    PharmacyAuthRepoImpl(
       firebaseAuthService: getIt<FirebaseAuthService>(),
-      databaseservice: getIt<DatabaseService>(),
-      fireStoreService: getIt<FireStoreService>(),
+      databaseService: getIt<DatabaseService>(),
     ),
   );
 
-  // ✅ إضافة الـ Casting اللي كنت بتستخدمه في تطبيق اليوزر لضمان التوافق
-  getIt.registerSingleton<AuthRepoImpl>(getIt<AuthRepo>() as AuthRepoImpl);
-
-  // Products Repository
+  // ---------------------------
+  // 3️⃣ Other Repositories
+  // ---------------------------
   getIt.registerFactory<ProductRepo>(
     () => ProductRepoImp(fireStoreService: getIt.get<FireStoreService>()),
   );
 
-  // Images Repository
   getIt.registerSingleton<ImagRepo>(ImagRepoImp(getIt.get<StorgeService>()));
 
-  // Orders Repository
   getIt.registerSingleton<OrdersRepo>(
     OrdersRepoImpl(getIt.get<DatabaseService>()),
   );
 
-  // Banners Repository
   getIt.registerLazySingleton<BannersRepo>(
     () => BannersRepoImpl(
       databaseService: getIt.get<DatabaseService>(),
@@ -72,18 +65,19 @@ void setupGetIt() {
   );
 
   // ---------------------------
-  // 3️⃣ Cubits
+  // 4️⃣ Cubits
   // ---------------------------
 
-  // ✅ تسجيل كل الـ Cubits الخاصة بالـ Auth كما في تطبيق اليوزر
-  getIt.registerFactory<SugnupCubit>(() => SugnupCubit(getIt<AuthRepo>()));
+  getIt.registerFactory<PharmacySignupCubit>(
+    () => PharmacySignupCubit(getIt<PharmacyAuthRepo>()),
+  );
 
-  // جعلنا LoginCubit سينجلتون كما في كود اليوزر لضمان ثبات حالة الدخول
-  getIt.registerSingleton<LoginCubit>(LoginCubit(getIt<AuthRepo>()));
+  // ✅ تم التعديل هنا من Singleton إلى Factory لحل مشكلة "Cannot emit after close"
+  getIt.registerFactory<PharmacyLoginCubit>(
+    () => PharmacyLoginCubit(getIt<PharmacyAuthRepo>()),
+  );
 
-  // ✅ حل مشكلة OTPCubit النهائية
-  getIt.registerFactory<OTPCubit>(() => OTPCubit(getIt<AuthRepo>()));
+  getIt.registerFactory<OTPCubit>(() => OTPCubit(getIt<PharmacyAuthRepo>()));
 
-  // Banners Cubit
   getIt.registerFactory<BannersCubit>(() => BannersCubit(getIt<BannersRepo>()));
 }

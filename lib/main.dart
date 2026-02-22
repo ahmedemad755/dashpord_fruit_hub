@@ -1,3 +1,4 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -39,6 +40,17 @@ class MainApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // تحديد المسار الابتدائي بناءً على حالة تسجيل الدخول وحالة القبول
+    String initialRoute;
+
+    if (FirebaseAuth.instance.currentUser == null) {
+      initialRoute = AppRoutes.login;
+    } else {
+      // لو مسجل دخول، بنشوف هل هو مقبول مسبقاً في الـ Prefs؟
+      bool isApproved = Prefs.getString("pharmacy_status") == "approved";
+      initialRoute = isApproved ? AppRoutes.home : AppRoutes.pendingApproval;
+    }
+
     return MaterialApp(
       title: 'صيدليتي - داشبورد',
       debugShowCheckedModeBanner: false,
@@ -49,11 +61,7 @@ class MainApp extends StatelessWidget {
         return Directionality(textDirection: TextDirection.rtl, child: child!);
       },
 
-      // ✅ تحديد المسار الابتدائي بناءً على حالة تسجيل الدخول
-      initialRoute: Prefs.getBool("isLoggedIn") == true
-          ? AppRoutes.home
-          : AppRoutes.login,
-
+      initialRoute: initialRoute,
       onGenerateRoute: onGenerateRoute,
     );
   }

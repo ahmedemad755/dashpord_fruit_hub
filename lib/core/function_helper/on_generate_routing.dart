@@ -3,15 +3,15 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:fruitesdashboard/core/di/injection.dart';
 import 'package:fruitesdashboard/core/function_helper/widgets/DashboardAnalytics.dart';
 import 'package:fruitesdashboard/featurs/add_product/presentation/views/add_product_view.dart';
-import 'package:fruitesdashboard/featurs/auth/data/repos/auth_repo.dart';
-import 'package:fruitesdashboard/featurs/auth/presentation/cubits/login/login_cubit.dart';
-import 'package:fruitesdashboard/featurs/auth/presentation/cubits/signup/sugnup_cubit.dart';
+import 'package:fruitesdashboard/featurs/auth/presentation/cubits/login/pharmacy_login_cubit.dart';
+import 'package:fruitesdashboard/featurs/auth/presentation/cubits/signup/pharmacy_signup_cubit.dart';
 import 'package:fruitesdashboard/featurs/auth/presentation/cubits/vereficationotp/vereficationotp_cubit.dart';
+import 'package:fruitesdashboard/featurs/auth/presentation/view/PendingApprovalView.dart';
+import 'package:fruitesdashboard/featurs/auth/presentation/view/Pharmacy_Signup_Screen.dart';
 import 'package:fruitesdashboard/featurs/auth/presentation/view/forgot_password_view.dart';
 import 'package:fruitesdashboard/featurs/auth/presentation/view/login_view.dart';
 import 'package:fruitesdashboard/featurs/auth/presentation/view/oTPVerificationScreen.dart';
 import 'package:fruitesdashboard/featurs/auth/presentation/view/reset_Password.dart';
-import 'package:fruitesdashboard/featurs/auth/presentation/view/signup.view.dart';
 import 'package:fruitesdashboard/featurs/banners/manger/cubit/banners_cubit.dart';
 import 'package:fruitesdashboard/featurs/banners/presentation/views/BannersManagementView.dart';
 import 'package:fruitesdashboard/featurs/dashboard/presentation/views/dashboard_view.dart';
@@ -31,12 +31,19 @@ class AppRoutes {
   static const String forgotPassword = 'forgotPassword';
   static const String otp = 'otp';
   static const String sendResetPassword = 'sendResetPassword';
+  static const String pendingApproval = 'pendingApproval';
 }
 
 Route<dynamic> onGenerateRoute(RouteSettings settings) {
   switch (settings.name) {
     case AppRoutes.dashboard:
-      return MaterialPageRoute(builder: (context) => DashboardView());
+      return MaterialPageRoute(
+        builder: (context) => BlocProvider(
+          // هنا يتم إنشاء نسخة جديدة تماماً للـ Dashboard
+          create: (context) => getIt<PharmacyLoginCubit>(),
+          child: const DashBoardView(),
+        ),
+      );
     case AppRoutes.addProduct:
       return MaterialPageRoute(builder: (context) => AddProductView());
     case AppRoutes.orders:
@@ -59,17 +66,17 @@ Route<dynamic> onGenerateRoute(RouteSettings settings) {
 
     case AppRoutes.login:
       return MaterialPageRoute(
-        settings: const RouteSettings(name: AppRoutes.login),
-        builder: (_) => BlocProvider(
-          create: (context) => LoginCubit(getIt<AuthRepo>()),
+        builder: (context) => BlocProvider(
+          // هنا يتم إنشاء نسخة جديدة تماماً للـ Login
+          create: (context) => getIt<PharmacyLoginCubit>(),
           child: const LoginView(),
         ),
       );
     case AppRoutes.signup:
       return MaterialPageRoute(
-        builder: (_) => BlocProvider(
-          create: (context) => SugnupCubit(getIt<AuthRepo>()),
-          child: const Signup(),
+        builder: (_) => BlocProvider.value(
+          value: getIt<PharmacySignupCubit>(), // سحب النسخة الجاهزة من GetIt
+          child: const PharmacySignupView(),
         ),
       );
     case AppRoutes.forgotPassword:
@@ -93,9 +100,26 @@ Route<dynamic> onGenerateRoute(RouteSettings settings) {
 
     case AppRoutes.sendResetPassword:
       return MaterialPageRoute(builder: (_) => const SendResetPassword());
+    case AppRoutes.pendingApproval:
+      return MaterialPageRoute(
+        builder: (_) =>
+            const PendingApprovalView(), // الشاشة التي أنشأناها في الرد السابق
+      );
+
     case AppRoutes.home:
-      return MaterialPageRoute(builder: (context) => DashboardView());
+      return MaterialPageRoute(
+        builder: (context) => BlocProvider(
+          create: (context) => getIt<PharmacyLoginCubit>(),
+          child: const DashBoardView(),
+        ),
+      );
+
     default:
-      return MaterialPageRoute(builder: (context) => DashboardView());
+      return MaterialPageRoute(
+        builder: (context) => BlocProvider(
+          create: (context) => getIt<PharmacyLoginCubit>(),
+          child: const DashBoardView(),
+        ),
+      );
   }
 }

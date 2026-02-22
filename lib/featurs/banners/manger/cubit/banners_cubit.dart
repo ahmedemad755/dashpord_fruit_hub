@@ -49,10 +49,9 @@ class BannersCubit extends Cubit<BannersState> {
 
     emit(AddBannerLoading());
 
-    // ننشئ Entity مؤقت لإرساله للـ Repo
     final banner = BannerEntity(
-      id: '', // الـ Repo سيتعامل مع الـ ID
-      imageUrl: '', // سيتم تحديثه برابط الرفع في الـ Repo
+      id: '',
+      imageUrl: '',
       linkType: linkType,
       targetId: targetId,
       isActive: isActive,
@@ -64,18 +63,37 @@ class BannersCubit extends Cubit<BannersState> {
     result.fold((failure) => emit(AddBannerFailure(failure.message)), (
       success,
     ) {
-      selectedImage = null; // تفريغ الصورة بعد النجاح
+      selectedImage = null;
       emit(AddBannerSuccess());
-      getBanners(); // تحديث القائمة تلقائياً بعد الإضافة
+      getBanners();
     });
   }
 
-  // 4. حذف عرض
+  // 4. حذف عرض (تم الإصلاح هنا ليتوافق مع الـ Repo)
   Future<void> deleteBanner(BannerEntity banner) async {
-    final result = await bannersRepo.deleteBanner(banner);
+    // حفظ الحالة السابقة لاستعادتها عند الفشل
+    final currentState = state;
+    List<BannerEntity> oldBanners = [];
+    if (currentState is GetBannersSuccess) {
+      oldBanners = currentState.banners;
+    }
+
+    emit(GetBannersLoading());
+
+    // نمرر الـ banner كاملاً (وليس banner.id) ليتوافق مع تعريف الـ Repo
+    var result = await bannersRepo.deleteBanner(banner);
+
     result.fold(
-      (failure) => emit(GetBannersFailure(failure.message)),
-      (success) => getBanners(), // تحديث القائمة بعد الحذف
+      (failure) {
+        emit(GetBannersFailure(failure.message));
+        // استعادة القائمة القديمة لضمان عدم توقف الواجهة
+        if (oldBanners.isNotEmpty) {
+          emit(GetBannersSuccess(oldBanners));
+        }
+      },
+      (success) {
+        getBanners(); // تحديث البيانات بعد الحذف بنجاح
+      },
     );
   }
 }

@@ -1,8 +1,6 @@
-// ignore_for_file: public_member_api_docs, sort_constructors_first
 import 'package:flutter/material.dart';
 import 'package:fruitesdashboard/core/utils/app_colors.dart';
 
-// ----------------- Reusable TextField Widget -----------------
 class CustomTextFormField extends StatelessWidget {
   final String hintText;
   final IconData? prefixIcon;
@@ -22,16 +20,14 @@ class CustomTextFormField extends StatelessWidget {
     this.prefixIcon,
     this.obscureText = false,
     this.errorText,
-    TextInputType? keyboardType,
+    TextInputType? textInputType,
     this.onSaved,
     this.onChanged,
     this.toggleObscure,
     this.controller,
     this.suffixIcon,
     this.validator,
-    // Old parameter names for backward compatibility
-    TextInputType? textInputType,
-  }) : keyboardType = textInputType ?? keyboardType ?? TextInputType.text;
+  }) : keyboardType = textInputType ?? TextInputType.text;
 
   @override
   Widget build(BuildContext context) {
@@ -44,10 +40,17 @@ class CustomTextFormField extends StatelessWidget {
           obscureText: obscureText,
           onSaved: onSaved,
           onChanged: onChanged,
-          validator: validator,
+          validator:
+              validator ??
+              (value) {
+                if (value == null || value.isEmpty) {
+                  return 'هذا الحقل مطلوب';
+                }
+                return null;
+              },
           decoration: InputDecoration(
             filled: true,
-            fillColor: AppColors.lightGray,
+            fillColor: const Color(0xFFF9FAFA),
             hintText: hintText,
             prefixIcon: prefixIcon != null
                 ? Icon(prefixIcon, color: AppColors.primary)
@@ -59,49 +62,24 @@ class CustomTextFormField extends StatelessWidget {
                         onTap: toggleObscure,
                         child: Icon(
                           obscureText ? Icons.visibility_off : Icons.visibility,
-                          color: AppColors.darkGray,
+                          color: Colors.grey,
                         ),
                       )
                     : null),
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide(
-                color: errorText != null
-                    ? AppColors.error
-                    : AppColors.mediumGray,
-                width: errorText != null ? 2 : 1,
-              ),
-            ),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide(
-                color: errorText != null
-                    ? AppColors.error
-                    : AppColors.mediumGray,
-                width: errorText != null ? 2 : 1,
-              ),
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(color: AppColors.primary, width: 2),
-            ),
-            contentPadding: const EdgeInsets.symmetric(
-              horizontal: 16,
-              vertical: 14,
-            ),
+            border: buildBorder(),
+            enabledBorder: buildBorder(),
+            focusedBorder: buildBorder(AppColors.primary),
           ),
         ),
-        if (errorText != null)
-          Padding(
-            padding: const EdgeInsets.only(top: 8),
-            child: Text(
-              errorText!,
-              style: const TextStyle(color: AppColors.error, fontSize: 12),
-            ),
-          )
-        else
-          const SizedBox(height: 12),
+        const SizedBox(height: 16),
       ],
+    );
+  }
+
+  OutlineInputBorder buildBorder([Color? color]) {
+    return OutlineInputBorder(
+      borderRadius: BorderRadius.circular(12),
+      borderSide: BorderSide(color: color ?? const Color(0xFFE6E9EA), width: 1),
     );
   }
 }
