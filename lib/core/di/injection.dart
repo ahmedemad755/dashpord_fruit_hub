@@ -53,8 +53,8 @@ void setupGetIt() {
 
   getIt.registerSingleton<ImagRepo>(ImagRepoImp(getIt.get<StorgeService>()));
 
-  getIt.registerSingleton<OrdersRepo>(
-    OrdersRepoImpl(getIt.get<DatabaseService>()),
+  getIt.registerFactory<OrdersRepo>(
+    () => OrdersRepoImpl(getIt.get<DatabaseService>()),
   );
 
   getIt.registerLazySingleton<BannersRepo>(

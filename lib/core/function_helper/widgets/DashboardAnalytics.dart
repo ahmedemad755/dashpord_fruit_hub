@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:fruitesdashboard/core/utils/app_colors.dart';
 
@@ -32,6 +33,9 @@ class _DashboardAnalyticsViewState extends State<DashboardAnalyticsView> {
 
   @override
   Widget build(BuildContext context) {
+    final String currentPharmacyId =
+        FirebaseAuth.instance.currentUser?.uid ?? "";
+
     return Scaffold(
       backgroundColor: const Color(0xFFF8F9FB),
       appBar: AppBar(
@@ -55,7 +59,11 @@ class _DashboardAnalyticsViewState extends State<DashboardAnalyticsView> {
         centerTitle: true,
       ),
       body: StreamBuilder<QuerySnapshot>(
-        stream: FirebaseFirestore.instance.collection('orders').snapshots(),
+        // التعديل: فلترة الطلبات حسب الصيدلية الحالية
+        stream: FirebaseFirestore.instance
+            .collection('orders')
+            .where('pharmacyId', isEqualTo: currentPharmacyId)
+            .snapshots(),
         builder: (context, ordersSnapshot) {
           if (ordersSnapshot.connectionState == ConnectionState.waiting) {
             return const Center(
@@ -63,11 +71,7 @@ class _DashboardAnalyticsViewState extends State<DashboardAnalyticsView> {
             );
           }
 
-          if (!ordersSnapshot.hasData || ordersSnapshot.data!.docs.isEmpty) {
-            return const Center(child: Text("لا توجد بيانات متاحة حالياً"));
-          }
-
-          final allOrders = ordersSnapshot.data!.docs;
+          final allOrders = ordersSnapshot.data?.docs ?? [];
           DateTime startDate = getStartDate();
 
           // فلترة الطلبات بناءً على التاريخ فقط
@@ -117,6 +121,7 @@ class _DashboardAnalyticsViewState extends State<DashboardAnalyticsView> {
                 _buildSectionTitle("أداء المبيعات (${_getArabicFilterName()})"),
                 const SizedBox(height: 15),
                 _buildStatGrid(
+                  currentPharmacyId: currentPharmacyId,
                   totalOrders: filteredOrders.length,
                   deliveredSales: deliveredSales,
                   deliveredCount: deliveredCount,
@@ -124,7 +129,6 @@ class _DashboardAnalyticsViewState extends State<DashboardAnalyticsView> {
                   pending: pendingCount,
                 ),
                 const SizedBox(height: 30),
-                // هنا يمكنك استدعاء ويدجت عرض القائمة إذا أردت
               ],
             ),
           );
@@ -204,6 +208,7 @@ class _DashboardAnalyticsViewState extends State<DashboardAnalyticsView> {
   }
 
   Widget _buildStatGrid({
+    required String currentPharmacyId,
     required int totalOrders,
     required double deliveredSales,
     required int deliveredCount,
@@ -211,7 +216,11 @@ class _DashboardAnalyticsViewState extends State<DashboardAnalyticsView> {
     required int pending,
   }) {
     return StreamBuilder<QuerySnapshot>(
-      stream: FirebaseFirestore.instance.collection('products').snapshots(),
+      // التعديل: فلترة المنتجات حسب الصيدلية الحالية لحساب "إجمالي الأصناف"
+      stream: FirebaseFirestore.instance
+          .collection('products')
+          .where('pharmacyId', isEqualTo: currentPharmacyId)
+          .snapshots(),
       builder: (context, prodSnapshot) {
         int productCount = prodSnapshot.hasData
             ? prodSnapshot.data!.docs.length

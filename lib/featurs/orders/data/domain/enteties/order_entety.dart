@@ -6,19 +6,20 @@ class OrderEntity {
   final double totalPrice;
   final String uId;
   final String orderID;
+  final String? pharmacyId; // 👈 إضافة الحقل هنا
   final ShippingAddressEntity shippingAddressModel;
   final List<OrderProductEntity> orderProducts;
   final String paymentMethod;
   final OrderStatus status;
+
   OrderEntity({
     required this.totalPrice,
     required this.uId,
     required this.orderID,
+    this.pharmacyId, // 👈 إضافته للـ Constructor
     required this.status,
     required this.shippingAddressModel,
     required this.orderProducts,
     required this.paymentMethod,
   });
 }
-
-// payment method

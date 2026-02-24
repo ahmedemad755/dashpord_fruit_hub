@@ -14,6 +14,7 @@ class OrderModel {
   final List<OrderProductModel> orderProducts;
   final String paymentMethod;
   final String orderID;
+  final String pharmacyId; // 🔹 إضافة الحقل هنا
 
   const OrderModel({
     this.id,
@@ -25,6 +26,7 @@ class OrderModel {
     required this.orderProducts,
     required this.paymentMethod,
     required this.orderID,
+    required this.pharmacyId, // 🔹 إضافة الحقل هنا
   });
 
   factory OrderModel.fromJson(Map<String, dynamic> json, {String? id}) {
@@ -33,17 +35,19 @@ class OrderModel {
       date: json['date'] is Timestamp
           ? (json['date'] as Timestamp).toDate()
           : json['date'] is String
-              ? DateTime.tryParse(json['date'].toString().replaceFirst(' ', 'T'))
-              : null,
+          ? DateTime.tryParse(json['date'].toString().replaceFirst(' ', 'T'))
+          : null,
       status: json['status']?.toString() ?? 'pending',
       totalPrice: (json['totalPrice'] as num?)?.toDouble() ?? 0.0,
       uId: json['uId']?.toString() ?? '',
+      pharmacyId: json['pharmacyId']?.toString() ?? '', // 🔹 قراءة pharmacyId
       shippingAddressModel: ShippingAddressModel.fromJson(
         json['shippingAddressModel'] is Map
             ? Map<String, dynamic>.from(json['shippingAddressModel'])
             : <String, dynamic>{},
       ),
-      orderProducts: (json['orderProducts'] as List<dynamic>?)
+      orderProducts:
+          (json['orderProducts'] as List<dynamic>?)
               ?.map<OrderProductModel>(
                 (e) => OrderProductModel.fromJson(
                   Map<String, dynamic>.from(e as Map),
@@ -61,6 +65,7 @@ class OrderModel {
       if (id != null) 'id': id,
       'date': date?.toIso8601String() ?? DateTime.now().toIso8601String(),
       'uId': uId,
+      'pharmacyId': pharmacyId, // 🔹 حفظ pharmacyId
       'status': status ?? 'pending',
       'totalPrice': totalPrice,
       'shippingAddressModel': shippingAddressModel.toJson(),
@@ -79,6 +84,7 @@ class OrderModel {
       orderProducts: orderProducts.map((e) => e.toEntity()).toList(),
       paymentMethod: paymentMethod,
       status: fetchEnum(),
+      // ملاحظة: إذا كانت OrderEntity تحتاج الـ pharmacyId، يجب إضافته هناك أيضاً
     );
   }
 
@@ -87,6 +93,8 @@ class OrderModel {
       orderID: entity.orderID,
       totalPrice: entity.totalPrice,
       uId: entity.uId,
+      // إذا كان الـ entity لا يحتوي على pharmacyId، يمكن تمرير قيمة فارغة أو تعديل الـ Entity لاحقاً
+      pharmacyId: '',
       shippingAddressModel: entity.shippingAddressModel is ShippingAddressModel
           ? entity.shippingAddressModel as ShippingAddressModel
           : ShippingAddressModel(

@@ -12,6 +12,8 @@ abstract class DatabaseService {
     String? docuementId,
     Map<String, dynamic>? query,
   });
+
+
   Stream<dynamic> getDataStream({
     required String path,
     Map<String, dynamic>? query,

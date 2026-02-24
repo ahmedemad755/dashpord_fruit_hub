@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:fruitesdashboard/core/utils/app_colors.dart';
 
@@ -7,6 +8,10 @@ class ProductsCategoryView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // جلب الـ ID الخاص بالصيدلية الحالية
+    final String currentPharmacyId =
+        FirebaseAuth.instance.currentUser?.uid ?? "";
+
     return Scaffold(
       backgroundColor: const Color(0xFFF5F7F9), // خلفية أهدى ومريحة للعين
       appBar: AppBar(
@@ -19,8 +24,11 @@ class ProductsCategoryView extends StatelessWidget {
         ),
       ),
       body: StreamBuilder<QuerySnapshot>(
-        // التأكد من جلب البيانات من كولكشن products
-        stream: FirebaseFirestore.instance.collection('products').snapshots(),
+        // التعديل هنا: فلترة المنتجات حسب الصيدلية الحالية
+        stream: FirebaseFirestore.instance
+            .collection('products')
+            .where('pharmacyId', isEqualTo: currentPharmacyId)
+            .snapshots(),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(
@@ -38,7 +46,7 @@ class ProductsCategoryView extends StatelessWidget {
             final data = doc.data() as Map<String, dynamic>;
 
             // قراءة الكاتيجوري (لو مش موجود نكتب تصنيف غير محدد)
-            String category = data['categoryName'] ?? "تصنيف عام";
+            String category = data['category'] ?? "تصنيف عام";
 
             if (groupedProducts[category] == null) {
               groupedProducts[category] = [];

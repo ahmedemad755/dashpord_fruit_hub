@@ -66,15 +66,23 @@ class FireStoreService implements DatabaseService {
   }
 
   @override
-  Stream<List<Map<String, dynamic>>> getDataStream({
+  Stream<dynamic> getDataStream({
     required String path,
     Map<String, dynamic>? query,
   }) {
-    Query<Map<String, dynamic>> ref = firestore.collection(path);
-    ref = _applyQueryModifiers(ref, query);
-    return ref.snapshots().map(
-      (snapshot) => snapshot.docs.map((e) => e.data()).toList(),
-    );
+    // 1. نبدأ بالإشارة للكوليكشن الأساسي
+    Query collection = firestore.collection(path);
+
+    // 2. إذا تم إرسال query، نقوم بتطبيق الفلترة
+    if (query != null) {
+      // نفترض أن الـ query يحتوي على 'field' و 'value'
+      collection = collection.where(query['field'], isEqualTo: query['value']);
+    }
+
+    // 3. نرجع الـ Stream مع تحويل الـ QuerySnapshot إلى List من البيانات
+    return collection.snapshots().map((snapshot) {
+      return snapshot.docs.map((doc) => doc.data()).toList();
+    });
   }
 
   @override
