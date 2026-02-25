@@ -15,6 +15,7 @@ class PharmacyEntity {
   final String pharmacistId;
   final String licenseNumber;
   final String nationalId;
+  final String? rejectionReason;
 
   PharmacyEntity({
     required this.uId,
@@ -30,6 +31,7 @@ class PharmacyEntity {
     required this.pharmacistId,
     required this.licenseNumber,
     required this.nationalId,
+    this.rejectionReason,
   });
   // إضافة هذه الدالة لتحويل البيانات من Firestore
   factory PharmacyEntity.fromJson(Map<String, dynamic> json) {
@@ -50,6 +52,7 @@ class PharmacyEntity {
       pharmacistId: json['pharmacistId'] ?? '',
       licenseNumber: json['licenseNumber'] ?? '',
       nationalId: json['nationalId'] ?? '',
+      rejectionReason: json['rejectionReason'],
     );
   }
 }

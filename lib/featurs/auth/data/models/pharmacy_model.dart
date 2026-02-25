@@ -16,12 +16,14 @@ class PharmacyModel extends PharmacyEntity {
     required super.pharmacistId,
     required super.licenseNumber,
     required super.nationalId,
+    super.rejectionReason,
   });
 
   factory PharmacyModel.fromJson(Map<String, dynamic> json) {
     return PharmacyModel(
       uId: json['uId'] ?? '',
       pharmacyName: json['pharmacyName'] ?? '',
+      rejectionReason: json['rejectionReason'] as String?,
       email: json['email'] ?? '',
       phoneNumber: json['phoneNumber'] ?? '',
       address: json['address'] ?? '',
@@ -53,6 +55,7 @@ class PharmacyModel extends PharmacyEntity {
       'licenseNumber': licenseNumber,
       'createdAt': createdAt,
       'nationalId': nationalId,
+      'rejectionReason': rejectionReason,
     };
   }
 
@@ -71,6 +74,7 @@ class PharmacyModel extends PharmacyEntity {
       pharmacistId: entity.pharmacistId,
       licenseNumber: entity.licenseNumber,
       nationalId: entity.nationalId,
+      rejectionReason: entity.rejectionReason,
     );
   }
 }
