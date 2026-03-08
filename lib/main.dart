@@ -8,6 +8,7 @@ import 'package:fruitesdashboard/core/function_helper/on_generate_routing.dart';
 import 'package:fruitesdashboard/core/services/custom_bloc_observer.dart';
 import 'package:fruitesdashboard/core/services/shared_prefs_singelton.dart'; // ✅ أضف هذا المسار
 import 'package:fruitesdashboard/core/services/supabase_storge.dart';
+import 'package:fruitesdashboard/firebase_options.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 void main() async {
@@ -17,7 +18,7 @@ void main() async {
   await Prefs.init();
 
   // 2️⃣ تهيئة Firebase
-  await Firebase.initializeApp();
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
   // 3️⃣ تهيئة Supabase
   await Supabase.initialize(url: supabaseUrl, anonKey: supabaseAnonKey);

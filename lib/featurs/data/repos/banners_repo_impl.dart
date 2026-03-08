@@ -8,6 +8,7 @@ import 'package:fruitesdashboard/core/utils/backend_points.dart';
 import 'package:fruitesdashboard/featurs/data/entity/BannerEntity.dart';
 import 'package:fruitesdashboard/featurs/data/models/BannerModel.dart';
 import 'package:fruitesdashboard/featurs/data/repos/banners_repo.dart';
+import 'package:image_picker/image_picker.dart';
 
 class BannersRepoImpl implements BannersRepo {
   final DatabaseService databaseService;
@@ -18,7 +19,7 @@ class BannersRepoImpl implements BannersRepo {
   @override
   Future<Either<Faliur, void>> addBanner(
     BannerEntity banner,
-    File image,
+    XFile image,
   ) async {
     try {
       // 1. رفع الصورة إلى Storage

@@ -10,7 +10,11 @@ class OrderEntity {
   final ShippingAddressEntity shippingAddressModel;
   final List<OrderProductEntity> orderProducts;
   final String paymentMethod;
+  final String? prescriptionImage;
   final OrderStatus status;
+  final String? prescriptionImageUrl;
+
+
 
   OrderEntity({
     required this.totalPrice,
@@ -21,5 +25,7 @@ class OrderEntity {
     required this.shippingAddressModel,
     required this.orderProducts,
     required this.paymentMethod,
+      this.prescriptionImageUrl,
+      this.prescriptionImage
   });
 }

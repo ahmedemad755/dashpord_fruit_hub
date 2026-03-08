@@ -26,6 +26,6 @@ class AddBannerFailure extends BannersState {
 
 // حالة تغيير الصورة محلياً (قبل الرفع)
 class BannerImageSelected extends BannersState {
-  final File image;
+  final XFile image;
   BannerImageSelected(this.image);
 }

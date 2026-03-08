@@ -17,10 +17,7 @@ import 'package:flutter/foundation.dart'
 class DefaultFirebaseOptions {
   static FirebaseOptions get currentPlatform {
     if (kIsWeb) {
-      throw UnsupportedError(
-        'DefaultFirebaseOptions have not been configured for web - '
-        'you can reconfigure this by running the FlutterFire CLI again.',
-      );
+      return web;
     }
     switch (defaultTargetPlatform) {
       case TargetPlatform.android:
@@ -28,15 +25,9 @@ class DefaultFirebaseOptions {
       case TargetPlatform.iOS:
         return ios;
       case TargetPlatform.macOS:
-        throw UnsupportedError(
-          'DefaultFirebaseOptions have not been configured for macos - '
-          'you can reconfigure this by running the FlutterFire CLI again.',
-        );
+        return macos;
       case TargetPlatform.windows:
-        throw UnsupportedError(
-          'DefaultFirebaseOptions have not been configured for windows - '
-          'you can reconfigure this by running the FlutterFire CLI again.',
-        );
+        return windows;
       case TargetPlatform.linux:
         throw UnsupportedError(
           'DefaultFirebaseOptions have not been configured for linux - '
@@ -63,8 +54,40 @@ class DefaultFirebaseOptions {
     messagingSenderId: '111940326225',
     projectId: 'fruit-hub-8689f',
     storageBucket: 'fruit-hub-8689f.firebasestorage.app',
-    androidClientId: '111940326225-ht7vqa4a1c9u70gs4l749ikoqhrl3arj.apps.googleusercontent.com',
+    androidClientId: '111940326225-2c3n5hfajldqnur8morsjfsrlhaudfsf.apps.googleusercontent.com',
     iosClientId: '111940326225-l5siotd9a77g7b71iqnsg4ofjaoi77b7.apps.googleusercontent.com',
     iosBundleId: 'com.example.fruitesdashboard',
   );
+
+  static const FirebaseOptions web = FirebaseOptions(
+    apiKey: 'AIzaSyB17blGB_XlOSZDlFdiObEhxdMlCZp7OG4',
+    appId: '1:111940326225:web:bd37f4384388dadf027970',
+    messagingSenderId: '111940326225',
+    projectId: 'fruit-hub-8689f',
+    authDomain: 'fruit-hub-8689f.firebaseapp.com',
+    storageBucket: 'fruit-hub-8689f.firebasestorage.app',
+    measurementId: 'G-9PC0JMH6V6',
+  );
+
+  static const FirebaseOptions macos = FirebaseOptions(
+    apiKey: 'AIzaSyBLm_rE6hEeM06uGLz5Jp6YoCVqhfFUdVI',
+    appId: '1:111940326225:ios:ed36098a5beac3d0027970',
+    messagingSenderId: '111940326225',
+    projectId: 'fruit-hub-8689f',
+    storageBucket: 'fruit-hub-8689f.firebasestorage.app',
+    androidClientId: '111940326225-2c3n5hfajldqnur8morsjfsrlhaudfsf.apps.googleusercontent.com',
+    iosClientId: '111940326225-l5siotd9a77g7b71iqnsg4ofjaoi77b7.apps.googleusercontent.com',
+    iosBundleId: 'com.example.fruitesdashboard',
+  );
+
+  static const FirebaseOptions windows = FirebaseOptions(
+    apiKey: 'AIzaSyB17blGB_XlOSZDlFdiObEhxdMlCZp7OG4',
+    appId: '1:111940326225:web:c5165f47dc74d4bc027970',
+    messagingSenderId: '111940326225',
+    projectId: 'fruit-hub-8689f',
+    authDomain: 'fruit-hub-8689f.firebaseapp.com',
+    storageBucket: 'fruit-hub-8689f.firebasestorage.app',
+    measurementId: 'G-15E8ZP98WR',
+  );
+
 }

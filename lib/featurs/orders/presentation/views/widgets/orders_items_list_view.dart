@@ -5,76 +5,76 @@ import 'package:fruitesdashboard/featurs/orders/presentation/views/widgets/order
 
 class OrdersItemsListView extends StatelessWidget {
   const OrdersItemsListView({super.key, required this.orderentEntites});
-
   final List<OrderEntity> orderentEntites;
 
   @override
   Widget build(BuildContext context) {
-    // 1. تجميع الأوردرات بناءً على uId المستخدم
     final Map<String, List<OrderEntity>> groupedOrders = {};
-
     for (var order in orderentEntites) {
-      if (groupedOrders.containsKey(order.uId)) {
-        groupedOrders[order.uId]!.add(order);
-      } else {
-        groupedOrders[order.uId] = [order];
-      }
+      String id = order.uId.isEmpty ? 'unknown' : order.uId;
+      groupedOrders.putIfAbsent(id, () => []).add(order);
     }
 
-    // 2. عرض القائمة المجمعة
-    return ListView.builder(
-      itemCount: groupedOrders.keys.length,
-      itemBuilder: (context, index) {
-        String userId = groupedOrders.keys.elementAt(index);
-        List<OrderEntity> userOrders = groupedOrders[userId]!;
+    if (groupedOrders.isEmpty) {
+      return const Center(child: Padding(
+        padding: EdgeInsets.symmetric(vertical: 50),
+        child: Text("لا توجد طلبات حالياً"),
+      ));
+    }
 
-        return Card(
-          margin: const EdgeInsets.only(bottom: 16),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-            side: BorderSide(color: Colors.grey.shade300),
+    // ✅ نستخدم ListView للكل لضمان عدم حدوث Overflow عند فتح التوسعة (Expansion)
+    return ListView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      itemCount: groupedOrders.keys.length,
+      itemBuilder: (context, index) => _buildCustomerCard(context, groupedOrders, index),
+    );
+  }
+
+  Widget _buildCustomerCard(BuildContext context, Map<String, List<OrderEntity>> groupedOrders, int index) {
+    String userId = groupedOrders.keys.elementAt(index);
+    List<OrderEntity> userOrders = groupedOrders[userId]!;
+
+    return Card(
+      margin: const EdgeInsets.only(bottom: 16, left: 8, right: 8),
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(color: Colors.grey.shade200),
+      ),
+      child: ExpansionTile(
+        maintainState: true, // يحافظ على حالة الفتح
+        shape: const RoundedRectangleBorder(side: BorderSide.none),
+        leading: CircleAvatar(
+          backgroundColor: Colors.teal.withOpacity(0.1),
+          child: const Icon(Icons.person, color: Colors.teal),
+        ),
+        title: _buildUserName(userId),
+        subtitle: Text('عدد الطلبات: ${userOrders.length}'),
+        children: [
+          // ✅ إزالة الـ SizedBox ذو الارتفاع الثابت 300 واستبداله بـ ListView مرن
+          ListView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            itemCount: userOrders.length,
+            itemBuilder: (context, i) => OrderItemWidget(orderentEntites: userOrders[i]),
           ),
-          child: ExpansionTile(
-            shape: const Border(), // إزالة الخطوط الافتراضية للـ ExpansionTile
-            title: FutureBuilder<DocumentSnapshot>(
-              future: FirebaseFirestore.instance
-                  .collection('user')
-                  .doc(userId)
-                  .get(),
-              builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Text(
-                    'جاري تحميل بيانات العميل...',
-                    style: TextStyle(fontSize: 14),
-                  );
-                }
-                if (snapshot.hasData && snapshot.data!.exists) {
-                  var userData = snapshot.data!.data() as Map<String, dynamic>;
-                  return Text(
-                    'العميل: ${userData['name'] ?? 'بدون اسم'}',
-                    style: const TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 16,
-                      color: Colors.green,
-                    ),
-                  );
-                }
-                return Text('ID العميل: $userId');
-              },
-            ),
-            subtitle: Text(
-              'عدد الطلبات: ${userOrders.length}',
-              style: const TextStyle(fontSize: 13, color: Colors.grey),
-            ),
-            leading: const CircleAvatar(
-              backgroundColor: Colors.green,
-              child: Icon(Icons.person, color: Colors.white),
-            ),
-            children: userOrders.map((order) {
-              return OrderItemWidget(orderentEntites: order);
-            }).toList(),
-          ),
-        );
+          const SizedBox(height: 12),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildUserName(String userId) {
+    return FutureBuilder<DocumentSnapshot>(
+      future: FirebaseFirestore.instance.collection('user').doc(userId).get(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) return const Text("...");
+        if (snapshot.hasData && snapshot.data!.exists) {
+          var userData = snapshot.data!.data() as Map<String, dynamic>;
+          return Text(userData['name'] ?? 'عميل غير معروف', style: const TextStyle(fontWeight: FontWeight.bold));
+        }
+        return Text('عميل ID: ${userId.substring(0, 5)}...');
       },
     );
   }

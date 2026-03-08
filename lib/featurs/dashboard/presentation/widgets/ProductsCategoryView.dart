@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:fruitesdashboard/core/utils/app_colors.dart';
+import 'package:fruitesdashboard/core/utils/backend_points.dart';
 import 'package:fruitesdashboard/featurs/dashboard/presentation/widgets/editProductView.dart';
 
 class ProductsCategoryView extends StatelessWidget {
@@ -9,25 +10,23 @@ class ProductsCategoryView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // جلب الـ ID الخاص بالصيدلية الحالية
     final String currentPharmacyId =
         FirebaseAuth.instance.currentUser?.uid ?? "";
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F7F9), // خلفية أهدى ومريحة للعين
+      backgroundColor: const Color(0xFFF8FAFC), // خلفية أفتح وأكثر راحة
       appBar: AppBar(
-        backgroundColor: AppColors.primaryColor,
         elevation: 0,
-        centerTitle: true,
+        backgroundColor: AppColors.primaryColor,
         title: const Text(
-          "جرد المنتجات المتاحة",
+          "إدارة المخزون والعروض",
           style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
         ),
+        centerTitle: true,
       ),
       body: StreamBuilder<QuerySnapshot>(
-        // فلترة المنتجات حسب الصيدلية الحالية
         stream: FirebaseFirestore.instance
-            .collection('products')
+            .collection(BackendPoints.getProducts)
             .where('pharmacyId', isEqualTo: currentPharmacyId)
             .snapshots(),
         builder: (context, snapshot) {
@@ -40,27 +39,63 @@ class ProductsCategoryView extends StatelessWidget {
             return _buildEmptyState();
           }
 
-          // تجميع المنتجات بناءً على الكاتيجوري
+          // تجميع المنتجات
           Map<String, List<QueryDocumentSnapshot>> groupedProducts = {};
-
           for (var doc in snapshot.data!.docs) {
             final data = doc.data() as Map<String, dynamic>;
-            String category = data['category'] ?? "تصنيف عام";
-
-            if (groupedProducts[category] == null) {
-              groupedProducts[category] = [];
-            }
-            groupedProducts[category]!.add(doc);
+            String category = data['category'] ?? "منتجات عامة";
+            groupedProducts.putIfAbsent(category, () => []).add(doc);
           }
 
           return ListView.builder(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            padding: const EdgeInsets.all(16),
             itemCount: groupedProducts.keys.length,
             itemBuilder: (context, index) {
               String category = groupedProducts.keys.elementAt(index);
               List<QueryDocumentSnapshot> products = groupedProducts[category]!;
 
-              return _buildCategorySection(context, category, products);
+              return Container(
+                margin: const EdgeInsets.only(bottom: 20),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.03),
+                      blurRadius: 10,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: ExpansionTile(
+                  shape: const RoundedRectangleBorder(side: BorderSide.none),
+                  collapsedShape: const RoundedRectangleBorder(
+                    side: BorderSide.none,
+                  ),
+                  leading: CircleAvatar(
+                    backgroundColor: AppColors.primaryColor.withOpacity(0.1),
+                    child: const Icon(
+                      Icons.inventory_2,
+                      color: AppColors.primaryColor,
+                      size: 20,
+                    ),
+                  ),
+                  title: Text(
+                    category,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                    ),
+                  ),
+                  subtitle: Text(
+                    "${products.length} منتجات مسجلة",
+                    style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
+                  ),
+                  children: products
+                      .map((product) => _buildProductItem(context, product))
+                      .toList(),
+                ),
+              );
             },
           );
         },
@@ -68,217 +103,133 @@ class ProductsCategoryView extends StatelessWidget {
     );
   }
 
-  // ويدجت لعرض الكاتيجوري والمنتجات اللي جواه
-  Widget _buildCategorySection(
-    BuildContext context,
-    String category,
-    List<QueryDocumentSnapshot> products,
-  ) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.04),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: ExpansionTile(
-        initiallyExpanded: true,
-        shape: const RoundedRectangleBorder(side: BorderSide.none),
-        iconColor: AppColors.primaryColor,
-        title: Text(
-          category,
-          style: const TextStyle(
-            fontWeight: FontWeight.w900,
-            color: AppColors.darkBlue,
-            fontSize: 18,
-          ),
-        ),
-        subtitle: Text(
-          "متوفر: ${products.length} منتجات",
-          style: const TextStyle(fontSize: 12),
-        ),
-        children: products.map((product) {
-          final data = product.data() as Map<String, dynamic>;
+  Widget _buildProductItem(BuildContext context, QueryDocumentSnapshot doc) {
+    final data = doc.data() as Map<String, dynamic>;
+    bool hasDiscount = data['hasDiscount'] ?? false;
 
-          // الحسابات
-          num price = data['price'] ?? 0;
-          bool hasDiscount = data['hasDiscount'] ?? false;
-          num discountPercent = data['discountPercentage'] ?? 0;
-          num finalPrice = hasDiscount
-              ? price - (price * (discountPercent / 100))
-              : price;
+    // --- منطق تنبيه المخزون ---
+    num amount = data['unitAmount'] ?? 0;
+    Color stockColor;
+    String stockStatus;
 
-          return Container(
-            decoration: BoxDecoration(
-              border: Border(top: BorderSide(color: Colors.grey.shade100)),
-            ),
-            child: ListTile(
-              contentPadding: const EdgeInsets.symmetric(
-                horizontal: 12,
-                vertical: 8,
-              ),
-              leading: _buildProductImage(data['imageurl']),
-              title: Text(
-                data['name'] ?? "منتج بدون اسم",
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 14,
-                ),
-              ),
-              subtitle: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const SizedBox(height: 4),
-                  _buildPriceWidget(price, finalPrice, hasDiscount),
-                  const SizedBox(height: 6),
-                  _buildPharmacyBadge(data['pharmacyId'] ?? "صيدلية غير مسجلة"),
-                ],
-              ),
-              trailing: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  // عرض الكمية
-                  Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Text(
-                        "الكمية",
-                        style: TextStyle(fontSize: 9, color: Colors.grey),
-                      ),
-                      Text(
-                        "${data['unitAmount'] ?? 0}",
-                        style: const TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 12,
-                          color: Colors.blueGrey,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(width: 4),
-                  // زر التعديل
-                  IconButton(
-                    icon: const Icon(
-                      Icons.edit_outlined,
-                      color: Colors.blue,
-                      size: 20,
-                    ),
-                    visualDensity: VisualDensity.compact,
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (ctx) => EditProductView(
-                            productId: product.id,
-                            initialData: data,
-                          ),
-                        ),
-                      );
-                    },
-                  ),
-                  // زر الحذف
-                  IconButton(
-                    icon: const Icon(
-                      Icons.delete_outline,
-                      color: Colors.redAccent,
-                      size: 20,
-                    ),
-                    visualDensity: VisualDensity.compact,
-                    onPressed: () => _showEnhancedDeleteDialog(
-                      context,
-                      product.id,
-                      data['name'] ?? "هذا المنتج",
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          );
-        }).toList(),
-      ),
-    );
-  }
+    if (amount <= 5) {
+      stockColor = Colors.red; // خطر: نفاد الكمية
+      stockStatus = "مخزون منخفض جداً";
+    } else if (amount <= 10) {
+      stockColor = Colors.orange; // تحذير: شارف على الانتهاء
+      stockStatus = "بدأ ينفد";
+    } else {
+      stockColor = Colors.green; // آمن: الكمية متوفرة
+      stockStatus = "متوفر";
+    }
 
-  Widget _buildProductImage(String? url) {
-    return Container(
-      width: 50,
-      height: 50,
-      decoration: BoxDecoration(
-        color: Colors.grey.shade50,
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: (url != null && url.isNotEmpty)
-          ? ClipRRect(
-              borderRadius: BorderRadius.circular(8),
-              child: Image.network(
-                url,
-                fit: BoxFit.cover,
-                errorBuilder: (context, error, stackTrace) => const Icon(
-                  Icons.broken_image,
-                  color: Colors.grey,
-                  size: 20,
-                ),
-              ),
-            )
-          : const Icon(
-              Icons.medication_rounded,
-              color: AppColors.primaryColor,
-              size: 25,
-            ),
-    );
-  }
-
-  Widget _buildPriceWidget(num oldPrice, num finalPrice, bool hasDiscount) {
-    return Wrap(
-      crossAxisAlignment: WrapCrossAlignment.center,
+    return Column(
       children: [
-        Text(
-          "${finalPrice.toStringAsFixed(1)} \$",
-          style: const TextStyle(
-            color: Colors.green,
-            fontWeight: FontWeight.w900,
-            fontSize: 13,
+        const Divider(height: 1, indent: 70),
+        ListTile(
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 20,
+            vertical: 10,
+          ),
+          leading: Stack(
+            children: [
+              Container(
+                width: 50,
+                height: 50,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(10),
+                  image: DecorationImage(
+                    image: NetworkImage(data['imageurl'] ?? ""),
+                    fit: BoxFit.cover,
+                  ),
+                ),
+              ),
+              // نقطة ملونة تشير للحالة فوق صورة المنتج
+              Positioned(
+                right: 0,
+                top: 0,
+                child: Container(
+                  width: 12,
+                  height: 12,
+                  decoration: BoxDecoration(
+                    color: stockColor,
+                    shape: BoxShape.circle,
+                    border: Border.all(color: Colors.white, width: 2),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          title: Text(
+            data['name'] ?? "",
+            style: const TextStyle(fontWeight: FontWeight.w600),
+          ),
+          subtitle: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Text(
+                    "${data['price']} \$",
+                    style: const TextStyle(
+                      color: Colors.teal,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  // عرض حالة المخزون بنص صغير وملون
+                  Text(
+                    "($stockStatus: $amount)",
+                    style: TextStyle(
+                      color: stockColor,
+                      fontSize: 11,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
+              ),
+              if (hasDiscount)
+                Padding(
+                  padding: const EdgeInsets.only(top: 4),
+                  child: Text(
+                    "خصم فعال: ${data['discountPercentage']}%",
+                    style: const TextStyle(color: Colors.orange, fontSize: 11),
+                  ),
+                ),
+            ],
+          ),
+          trailing: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              IconButton(
+                icon: Icon(
+                  hasDiscount ? Icons.local_offer : Icons.local_offer_outlined,
+                  color: hasDiscount ? Colors.orange : Colors.grey.shade400,
+                ),
+                onPressed: () => _showDiscountDialog(
+                  context,
+                  doc.reference,
+                  hasDiscount,
+                  data['discountPercentage'],
+                ),
+              ),
+              IconButton(
+                icon: const Icon(
+                  Icons.edit_note_rounded,
+                  color: Colors.blueAccent,
+                ),
+                onPressed: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) =>
+                        EditProductView(productId: doc.id, initialData: data),
+                  ),
+                ),
+              ),
+            ],
           ),
         ),
-        if (hasDiscount) ...[
-          const SizedBox(width: 6),
-          Text(
-            "$oldPrice \$",
-            style: const TextStyle(
-              color: Colors.red,
-              decoration: TextDecoration.lineThrough,
-              fontSize: 10,
-            ),
-          ),
-        ],
       ],
-    );
-  }
-
-  Widget _buildPharmacyBadge(String pharmacyName) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-      decoration: BoxDecoration(
-        color: AppColors.primaryColor.withOpacity(0.08),
-        borderRadius: BorderRadius.circular(4),
-      ),
-      child: Text(
-        pharmacyName,
-        maxLines: 1,
-        style: const TextStyle(
-          fontSize: 10,
-          color: AppColors.primaryColor,
-          fontWeight: FontWeight.w600,
-        ),
-      ),
     );
   }
 
@@ -288,143 +239,63 @@ class ProductsCategoryView extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Icon(
-            Icons.inventory_2_outlined,
+            Icons.layers_clear_outlined,
             size: 80,
             color: Colors.grey.shade300,
           ),
           const SizedBox(height: 16),
           const Text(
-            "لا توجد منتجات مضافة",
-            style: TextStyle(color: Colors.grey, fontSize: 18),
+            "لا توجد منتجات مضافة حالياً",
+            style: TextStyle(color: Colors.grey, fontSize: 16),
           ),
         ],
       ),
     );
   }
 
-  void _showEnhancedDeleteDialog(
+  // --- دالة الخصم تظل كما هي مع تحسين بسيط في الألوان ---
+  void _showDiscountDialog(
     BuildContext context,
-    String productId,
-    String productName,
+    DocumentReference ref,
+    bool hasDiscount,
+    dynamic current,
   ) {
-    final TextEditingController confirmationController =
-        TextEditingController();
-    final GlobalKey<FormState> formKey = GlobalKey<FormState>();
-
+    final controller = TextEditingController(
+      text: hasDiscount ? current.toString() : "",
+    );
     showDialog(
       context: context,
-      builder: (BuildContext dialogContext) {
-        return StatefulBuilder(
-          // نحتاج StatefulBuilder لتحديث حالة الزر داخل الديالوج
-          builder: (context, setState) {
-            return AlertDialog(
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(20),
-              ),
-              title: Row(
-                children: [
-                  const Icon(Icons.warning_amber_rounded, color: Colors.red),
-                  const SizedBox(width: 10),
-                  const Text(
-                    "إجراء أمني",
-                    style: TextStyle(fontWeight: FontWeight.bold),
-                  ),
-                ],
-              ),
-              content: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    "لحذف ($productName) نهائياً، يرجى كتابة كلمة 'حذف' في الحقل أدناه:",
-                  ),
-                  const SizedBox(height: 15),
-                  Form(
-                    key: formKey,
-                    child: TextFormField(
-                      controller: confirmationController,
-                      autofocus: true,
-                      decoration: InputDecoration(
-                        hintText: "اكتب 'حذف' هنا",
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        focusedBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(10),
-                          borderSide: const BorderSide(color: Colors.red),
-                        ),
-                      ),
-                      onChanged: (value) {
-                        // تحديث حالة الزر عند الكتابة
-                        setState(() {});
-                      },
-                    ),
-                  ),
-                ],
-              ),
-              actions: [
-                TextButton(
-                  child: const Text(
-                    "إلغاء",
-                    style: TextStyle(color: Colors.grey),
-                  ),
-                  onPressed: () => Navigator.of(dialogContext).pop(),
-                ),
-                ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: confirmationController.text == "حذف"
-                        ? Colors.red
-                        : Colors.grey[300],
-                    elevation: 0,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                  ),
-                  // لا يعمل الزر إلا إذا كانت الكلمة صحيحة
-                  onPressed: confirmationController.text == "حذف"
-                      ? () async {
-                          Navigator.of(dialogContext).pop();
-                          _executeDelete(context, productId, productName);
-                        }
-                      : null,
-                  child: const Text(
-                    "تأكيد الحذف النهائي",
-                    style: TextStyle(color: Colors.white),
-                  ),
-                ),
-              ],
-            );
-          },
-        );
-      },
-    );
-  }
-
-  // دالة التنفيذ الفعلية للحذف
-  Future<void> _executeDelete(
-    BuildContext context,
-    String productId,
-    String productName,
-  ) async {
-    try {
-      await FirebaseFirestore.instance
-          .collection('products')
-          .doc(productId)
-          .delete();
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text("تم حذف $productName بنجاح"),
-            backgroundColor: Colors.black87,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+        title: const Text("إعداد خصم للمنتج"),
+        content: TextField(
+          controller: controller,
+          keyboardType: TextInputType.number,
+          decoration: const InputDecoration(
+            labelText: "نسبة الخصم %",
+            hintText: "مثلاً: 15",
           ),
-        );
-      }
-    } catch (e) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("فشلت عملية الحذف، حاول مجدداً")),
-        );
-      }
-    }
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              ref.update({'hasDiscount': false, 'discountPercentage': 0});
+              Navigator.pop(context);
+            },
+            child: const Text("حذف الخصم", style: TextStyle(color: Colors.red)),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              int? val = int.tryParse(controller.text);
+              if (val != null && val <= 100) {
+                ref.update({'hasDiscount': true, 'discountPercentage': val});
+                Navigator.pop(context);
+              }
+            },
+            child: const Text("حفظ"),
+          ),
+        ],
+      ),
+    );
   }
 }

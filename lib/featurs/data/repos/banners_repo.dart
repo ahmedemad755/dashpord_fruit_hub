@@ -1,13 +1,13 @@
-import 'dart:io';
 
 import 'package:dartz/dartz.dart';
 import 'package:fruitesdashboard/core/errors/faliur.dart';
 import 'package:fruitesdashboard/featurs/data/entity/BannerEntity.dart';
+import 'package:image_picker/image_picker.dart';
 
 
 abstract class BannersRepo {
   // إضافة عرض جديد (تشمل رفع الصورة ثم حفظ البيانات)
-  Future<Either<Faliur, void>> addBanner(BannerEntity banner, File image);
+  Future<Either<Faliur, void>> addBanner(BannerEntity banner, XFile image);
   
   // جلب كل العروض لعرضها في جدول أو قائمة بالداش بورد
   Future<Either<Faliur, List<BannerEntity>>> getBanners();

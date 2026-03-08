@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:fruitesdashboard/core/const/const.dart';
 import 'package:fruitesdashboard/core/services/storge_service.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:path/path.dart' as b;
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -32,18 +33,18 @@ class SupabaseStorgeService implements StorgeService {
   }
 
   @override
-  Future<String?> uploadImage(File file, String path) async {
+  Future<String?> uploadImage(XFile file, String path) async {
     try {
       // تعديل هنا: إضافة الوقت الحالي لاسم الملف لجعله فريداً
       final String uniqueId = DateTime.now().millisecondsSinceEpoch.toString();
       final fileName = b.basename(file.path);
       final filePath =
           '$path/${uniqueId}_$fileName'; // دمج المعرف الفريد مع الاسم
-
-      await Supabase.instance.client.storage
+final bytes = await file.readAsBytes();
+await Supabase.instance.client.storage
           .from(supabaseBucketName)
-          .upload(filePath, file);
-
+          .uploadBinary(filePath, bytes, 
+              fileOptions: const FileOptions(cacheControl: '3600', upsert: false));
       final publicUrl = Supabase.instance.client.storage
           .from(supabaseBucketName)
           .getPublicUrl(filePath);

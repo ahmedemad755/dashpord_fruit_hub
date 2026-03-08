@@ -23,9 +23,8 @@ class OrdersView extends StatelessWidget {
           create: (context) => UpdateOrderCubit(getIt.get<OrdersRepo>()),
         ),
       ],
-      child: Scaffold(
-        appBar: AppBar(title: Center(child: const Text('Orders'))),
-        body: UpdateOrderBuilder(child: OrdersViewBodyBUilder()),
+      child: const UpdateOrderBuilder(
+        child: OrdersViewBodyBUilder(),
       ),
     );
   }
@@ -53,6 +52,7 @@ class _OrdersViewBodyBUilderState extends State<OrdersViewBodyBUilder> {
       builder: (context, state) {
         if (state is FetchOrdersLoading) {
           return Skeletonizer(
+            enabled: true,
             child: OrdersViewBody(orders: [getDummyOrder(), getDummyOrder()]),
           );
         } else if (state is FetchOrdersSuccess) {
@@ -61,6 +61,7 @@ class _OrdersViewBodyBUilderState extends State<OrdersViewBodyBUilder> {
           return Center(child: Text(state.errMessage));
         } else {
           return Skeletonizer(
+            enabled: true,
             child: OrdersViewBody(orders: [getDummyOrder(), getDummyOrder()]),
           );
         }

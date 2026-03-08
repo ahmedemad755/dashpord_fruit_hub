@@ -4,12 +4,13 @@ import 'package:fruitesdashboard/core/errors/faliur.dart';
 import 'package:fruitesdashboard/core/repos/imag_repo/imag_repo.dart';
 import 'package:fruitesdashboard/core/services/storge_service.dart';
 import 'package:fruitesdashboard/core/utils/backend_points.dart';
+import 'package:image_picker/image_picker.dart';
 
 class ImagRepoImp implements ImagRepo {
   final StorgeService storgeService;
   ImagRepoImp(this.storgeService);
   @override
-  Future<Either<Faliur, String>> uploadImage(File image) async {
+  Future<Either<Faliur, String>> uploadImage(XFile image) async {
     try {
       return await storgeService.uploadImage(image, BackendPoints.urlImag).then((
         value,

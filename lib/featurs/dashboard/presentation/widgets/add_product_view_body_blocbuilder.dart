@@ -15,17 +15,16 @@ class AddProductViewBodyBlocbuilder extends StatelessWidget {
         if (state is AddProductSuccess) {
           buildBar(
             context,
-            "Product added successfully",
-            style: TextStyle(color: Colors.yellow, fontWeight: FontWeight.bold),
-            backgroundColor: Colors.green, // كمان تقدر تغير خلفية الـ SnackBar
+            "تم إضافة المنتج بنجاح",
+            style: const TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.bold,
+            ),
+            backgroundColor: Colors.green,
           );
+          Navigator.pop(context); // العودة للخلف بعد النجاح
         } else if (state is AddProductError) {
-          buildBar(
-            context,
-            state.error,
-            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-            backgroundColor: Colors.red,
-          );
+          buildBar(context, state.error, backgroundColor: Colors.red);
         }
       },
       builder: (context, state) {

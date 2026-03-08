@@ -1,5 +1,8 @@
+// ignore_for_file: must_be_immutable
+import 'dart:convert';
 import 'dart:io';
 
+import 'package:flutter/foundation.dart' show kIsWeb; // للتمييز بين الويب والموبايل
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -29,12 +32,14 @@ class _PharmacySignupViewState extends State<PharmacySignupView> {
 
   bool _isTermsAccepted = false;
   bool _isUploadingImage = false;
-  File? _licenseImage;
+  
+  // تغيير النوع لـ XFile ليتوافق مع الويب والموبايل ويحل مشكلة _Namespace
+  XFile? _licenseImage; 
   String? _uploadedImageUrl;
+  
   late String nationalId;
-
   late String email, password, pharmacyName, phoneNumber, address;
-  late String pharmacistName, pharmacistId, licenseNumber; // المتغيرات الجديدة
+  late String pharmacistName, pharmacistId, licenseNumber;
 
   Future<void> _pickAndUploadImage() async {
     final ImagePicker picker = ImagePicker();
@@ -45,11 +50,12 @@ class _PharmacySignupViewState extends State<PharmacySignupView> {
 
     if (image != null) {
       setState(() {
-        _licenseImage = File(image.path);
+        _licenseImage = image; // هنا نخزن الـ XFile مباشرة
         _isUploadingImage = true;
       });
 
-      final result = await getIt<ImagRepo>().uploadImage(_licenseImage!);
+      // نمرر الـ XFile للـ Repo (تأكد أن Repo يستقبل XFile أو File)
+      final result = await getIt<ImagRepo>().uploadImage(image);
 
       result.fold(
         (failure) {
@@ -91,7 +97,6 @@ class _PharmacySignupViewState extends State<PharmacySignupView> {
         phoneNumber: phoneNumber,
         address: address,
         licenseUrl: _uploadedImageUrl!,
-        // إضافة الحقول الجديدة هنا لتصل للكيوبيت
         pharmacistName: pharmacistName,
         pharmacistId: pharmacistId,
         licenseNumber: licenseNumber,
@@ -113,9 +118,7 @@ class _PharmacySignupViewState extends State<PharmacySignupView> {
         listener: (context, state) {
           if (state is PharmacySignupSuccess) {
             showBar(context, "تم إرسال طلبك بنجاح، انتظر مراجعة الإدارة");
-            Navigator.of(
-              context,
-            ).pushReplacementNamed(AppRoutes.pendingApproval);
+            Navigator.of(context).pushReplacementNamed(AppRoutes.pendingApproval);
           }
           if (state is PharmacySignupFailure) {
             showBar(context, state.message);
@@ -134,10 +137,7 @@ class _PharmacySignupViewState extends State<PharmacySignupView> {
                   children: [
                     const Text(
                       "بيانات الدكتور المسؤول",
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                      ),
+                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                     ),
                     const SizedBox(height: 12),
 
@@ -146,16 +146,12 @@ class _PharmacySignupViewState extends State<PharmacySignupView> {
                       onSaved: (value) => pharmacistName = value!,
                     ),
 
-                    // الحقل الجديد الذي سبب المشكلة
                     CustomTextFormField(
                       hintText: 'الرقم القومي للصيدلي (14 رقم)',
                       textInputType: TextInputType.number,
-                      onSaved: (value) => nationalId =
-                          value!, // تأكد أنك تستخدم المتغير الصحيح nationalId
+                      onSaved: (value) => nationalId = value!,
                       validator: (value) {
-                        if (value == null ||
-                            value.isEmpty ||
-                            value.length != 14) {
+                        if (value == null || value.isEmpty || value.length != 14) {
                           return 'يرجى إدخال رقم قومي صحيح مكون من 14 رقم';
                         }
                         return null;
@@ -169,11 +165,7 @@ class _PharmacySignupViewState extends State<PharmacySignupView> {
                     const SizedBox(height: 20),
                     const Text(
                       "بيانات الصيدلية",
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.blueGrey,
-                      ),
+                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.blueGrey),
                     ),
                     const SizedBox(height: 12),
                     CustomTextFormField(
@@ -201,10 +193,7 @@ class _PharmacySignupViewState extends State<PharmacySignupView> {
                     const SizedBox(height: 20),
                     const Text(
                       "المستندات القانونية",
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.bold,
-                      ),
+                      style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
                     ),
                     const SizedBox(height: 8),
                     _buildImagePickerBox(),
@@ -229,7 +218,6 @@ class _PharmacySignupViewState extends State<PharmacySignupView> {
     );
   }
 
-  // الدوال المساعدة تبقى كما هي تماماً دون تغيير في الأسماء
   Widget _buildImagePickerBox() {
     return GestureDetector(
       onTap: _isUploadingImage ? null : _pickAndUploadImage,
@@ -240,54 +228,44 @@ class _PharmacySignupViewState extends State<PharmacySignupView> {
           color: Colors.grey[50],
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
-            color: _uploadedImageUrl != null
-                ? Colors.green
-                : AppColors.primary.withOpacity(0.3),
+            color: _uploadedImageUrl != null ? Colors.green : AppColors.primary.withOpacity(0.3),
             style: BorderStyle.solid,
           ),
         ),
         child: _isUploadingImage
             ? const Center(child: CircularProgressIndicator())
             : _licenseImage != null
-            ? ClipRRect(
-                borderRadius: BorderRadius.circular(12),
-                child: Stack(
-                  children: [
-                    Image.file(
-                      _licenseImage!,
-                      fit: BoxFit.cover,
-                      width: double.infinity,
-                    ),
-                    Positioned(
-                      right: 8,
-                      top: 8,
-                      child: CircleAvatar(
-                        backgroundColor: Colors.black54,
-                        child: IconButton(
-                          icon: const Icon(Icons.edit, color: Colors.white),
-                          onPressed: _pickAndUploadImage,
+                ? ClipRRect(
+                    borderRadius: BorderRadius.circular(12),
+                    child: Stack(
+                      children: [
+                        // العرض باستخدام kIsWeb لضمان عدم حدوث خطأ _Namespace
+                        kIsWeb 
+                          ? Image.network(_licenseImage!.path, fit: BoxFit.cover, width: double.infinity)
+                          : Image.file(File(_licenseImage!.path), fit: BoxFit.cover, width: double.infinity),
+                        Positioned(
+                          right: 8,
+                          top: 8,
+                          child: CircleAvatar(
+                            backgroundColor: Colors.black54,
+                            child: IconButton(
+                              icon: const Icon(Icons.edit, color: Colors.white),
+                              onPressed: _pickAndUploadImage,
+                            ),
+                          ),
                         ),
-                      ),
+                      ],
                     ),
-                  ],
-                ),
-              )
-            : Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(
-                    Icons.upload_file_rounded,
-                    size: 48,
-                    color: AppColors.primary,
+                  )
+                : Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.upload_file_rounded, size: 48, color: AppColors.primary),
+                      const SizedBox(height: 10),
+                      const Text("اضغط لرفع صورة الترخيص (Image)"),
+                      const Text("JPG, PNG", style: TextStyle(fontSize: 12, color: Colors.grey)),
+                    ],
                   ),
-                  const SizedBox(height: 10),
-                  const Text("اضغط لرفع صورة الترخيص (Image)"),
-                  const Text(
-                    "JPG, PNG",
-                    style: TextStyle(fontSize: 12, color: Colors.grey),
-                  ),
-                ],
-              ),
       ),
     );
   }
@@ -308,10 +286,7 @@ class _PharmacySignupViewState extends State<PharmacySignupView> {
               children: [
                 TextSpan(
                   text: 'الشروط والأحكام الخاصة بالصيادلة',
-                  style: const TextStyle(
-                    color: Colors.blue,
-                    fontWeight: FontWeight.bold,
-                  ),
+                  style: const TextStyle(color: Colors.blue, fontWeight: FontWeight.bold),
                   recognizer: TapGestureRecognizer()
                     ..onTap = () => showTermsAndConditionsDialog(
                       context,
@@ -329,8 +304,7 @@ class _PharmacySignupViewState extends State<PharmacySignupView> {
   Widget _buildLoginRedirect() {
     return Center(
       child: TextButton(
-        onPressed: () =>
-            Navigator.of(context).pushReplacementNamed(AppRoutes.login),
+        onPressed: () => Navigator.of(context).pushReplacementNamed(AppRoutes.login),
         child: const Text('هل لديك حساب بالفعل؟ تسجيل دخول'),
       ),
     );

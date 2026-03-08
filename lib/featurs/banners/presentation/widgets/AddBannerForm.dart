@@ -1,3 +1,5 @@
+import 'package:flutter/foundation.dart'; // للتحقق من kIsWeb
+import 'dart:io'; // اجعله احتياطياً فقط للموبايل
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:fruitesdashboard/featurs/banners/manger/cubit/banners_cubit.dart';
@@ -46,7 +48,7 @@ class _AddBannerFormState extends State<AddBannerForm> {
               ),
               const SizedBox(height: 12),
 
-              // مساحة اختيار الصورة
+              // مساحة اختيار الصورة المعدلة
               GestureDetector(
                 onTap: () => cubit.pickImage(),
                 child: Container(
@@ -56,15 +58,21 @@ class _AddBannerFormState extends State<AddBannerForm> {
                     color: Colors.grey[100],
                     borderRadius: BorderRadius.circular(16),
                     border: Border.all(color: Colors.grey[300]!, width: 2),
-                    image: cubit.selectedImage != null
-                        ? DecorationImage(
-                            image: FileImage(cubit.selectedImage!),
-                            fit: BoxFit.cover,
-                          )
-                        : null,
                   ),
-                  child: cubit.selectedImage == null
-                      ? Column(
+                  child: cubit.selectedImage != null
+                      ? ClipRRect(
+                          borderRadius: BorderRadius.circular(14),
+                          child: kIsWeb
+                              ? Image.network(
+                                  cubit.selectedImage!.path,
+                                  fit: BoxFit.cover,
+                                )
+                              : Image.file(
+                                  File(cubit.selectedImage!.path),
+                                  fit: BoxFit.cover,
+                                ),
+                        )
+                      : Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: const [
                             Icon(
@@ -78,15 +86,15 @@ class _AddBannerFormState extends State<AddBannerForm> {
                               style: TextStyle(color: Colors.grey),
                             ),
                           ],
-                        )
-                      : null,
+                        ),
                 ),
               ),
+              
+              // ... (باقي الكود الخاص بـ Dropdown والـ TextField يبقى كما هو)
               const SizedBox(height: 24),
 
-              // نوع الربط
               DropdownButtonFormField<String>(
-                initialValue: selectedType,
+                value: selectedType, // تم تغيير initialValue إلى value
                 decoration: InputDecoration(
                   labelText: 'ماذا يحدث عند الضغط على العرض؟',
                   border: OutlineInputBorder(
@@ -96,18 +104,9 @@ class _AddBannerFormState extends State<AddBannerForm> {
                   fillColor: Colors.grey[50],
                 ),
                 items: const [
-                  DropdownMenuItem(
-                    value: 'none',
-                    child: Text('لا شيء (عرض فقط)'),
-                  ),
-                  DropdownMenuItem(
-                    value: 'product',
-                    child: Text('فتح صفحة منتج'),
-                  ),
-                  DropdownMenuItem(
-                    value: 'category',
-                    child: Text('فتح قسم معين'),
-                  ),
+                  DropdownMenuItem(value: 'none', child: Text('لا شيء (عرض فقط)')),
+                  DropdownMenuItem(value: 'product', child: Text('فتح صفحة منتج')),
+                  DropdownMenuItem(value: 'category', child: Text('فتح قسم معين')),
                 ],
                 onChanged: (val) => setState(() => selectedType = val!),
               ),
@@ -124,9 +123,7 @@ class _AddBannerFormState extends State<AddBannerForm> {
                       borderRadius: BorderRadius.circular(12),
                     ),
                     prefixIcon: Icon(
-                      selectedType == 'product'
-                          ? Icons.inventory_2
-                          : Icons.category,
+                      selectedType == 'product' ? Icons.inventory_2 : Icons.category,
                     ),
                   ),
                 ),

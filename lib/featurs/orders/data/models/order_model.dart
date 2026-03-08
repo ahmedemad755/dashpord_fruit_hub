@@ -15,6 +15,7 @@ class OrderModel {
   final String paymentMethod;
   final String orderID;
   final String pharmacyId; // 🔹 إضافة الحقل هنا
+  final String? prescriptionImage;
 
   const OrderModel({
     this.id,
@@ -27,6 +28,7 @@ class OrderModel {
     required this.paymentMethod,
     required this.orderID,
     required this.pharmacyId, // 🔹 إضافة الحقل هنا
+    this.prescriptionImage,
   });
 
   factory OrderModel.fromJson(Map<String, dynamic> json, {String? id}) {
@@ -37,6 +39,7 @@ class OrderModel {
           : json['date'] is String
           ? DateTime.tryParse(json['date'].toString().replaceFirst(' ', 'T'))
           : null,
+          prescriptionImage: json['prescriptionImage']?.toString(),
       status: json['status']?.toString() ?? 'pending',
       totalPrice: (json['totalPrice'] as num?)?.toDouble() ?? 0.0,
       uId: json['uId']?.toString() ?? '',
@@ -45,6 +48,7 @@ class OrderModel {
         json['shippingAddressModel'] is Map
             ? Map<String, dynamic>.from(json['shippingAddressModel'])
             : <String, dynamic>{},
+
       ),
       orderProducts:
           (json['orderProducts'] as List<dynamic>?)
@@ -72,6 +76,7 @@ class OrderModel {
       'orderProducts': orderProducts.map((e) => e.toJson()).toList(),
       'paymentMethod': paymentMethod,
       'orderID': orderID,
+      'prescriptionImage': prescriptionImage,
     };
   }
 
@@ -80,6 +85,7 @@ class OrderModel {
       totalPrice: totalPrice,
       uId: uId,
       orderID: orderID,
+      prescriptionImage: prescriptionImage,
       shippingAddressModel: shippingAddressModel,
       orderProducts: orderProducts.map((e) => e.toEntity()).toList(),
       paymentMethod: paymentMethod,

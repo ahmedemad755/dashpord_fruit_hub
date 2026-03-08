@@ -4,6 +4,7 @@ import 'package:fruitesdashboard/core/di/injection.dart';
 import 'package:fruitesdashboard/core/function_helper/widgets/DashboardAnalytics.dart';
 import 'package:fruitesdashboard/featurs/add_product/presentation/views/add_product_view.dart';
 import 'package:fruitesdashboard/featurs/auth/presentation/cubits/login/pharmacy_login_cubit.dart';
+import 'package:fruitesdashboard/featurs/auth/presentation/cubits/roles/role_cubit.dart';
 import 'package:fruitesdashboard/featurs/auth/presentation/cubits/signup/pharmacy_signup_cubit.dart';
 import 'package:fruitesdashboard/featurs/auth/presentation/cubits/vereficationotp/vereficationotp_cubit.dart';
 import 'package:fruitesdashboard/featurs/auth/presentation/view/PendingApprovalView.dart';
@@ -16,6 +17,8 @@ import 'package:fruitesdashboard/featurs/banners/manger/cubit/banners_cubit.dart
 import 'package:fruitesdashboard/featurs/banners/presentation/views/BannersManagementView.dart';
 import 'package:fruitesdashboard/featurs/dashboard/presentation/views/dashboard_view.dart';
 import 'package:fruitesdashboard/featurs/dashboard/presentation/widgets/ProductsCategoryView.dart';
+import 'package:fruitesdashboard/featurs/inventory/presentation/cubit/inventory_cubit.dart';
+import 'package:fruitesdashboard/featurs/inventory/presentation/views/inventory_view.dart';
 import 'package:fruitesdashboard/featurs/orders/presentation/views/orders_view.dart';
 
 class AppRoutes {
@@ -32,22 +35,29 @@ class AppRoutes {
   static const String otp = 'otp';
   static const String sendResetPassword = 'sendResetPassword';
   static const String pendingApproval = 'pendingApproval';
+  static const String inventory = 'inventory';
 }
 
 Route<dynamic> onGenerateRoute(RouteSettings settings) {
   switch (settings.name) {
     case AppRoutes.dashboard:
+    case AppRoutes.home:
       return MaterialPageRoute(
-        builder: (context) => BlocProvider(
-          // هنا يتم إنشاء نسخة جديدة تماماً للـ Dashboard
-          create: (context) => getIt<PharmacyLoginCubit>(),
+        builder: (context) => MultiBlocProvider(
+          providers: [
+            BlocProvider(create: (context) => getIt<PharmacyLoginCubit>()),
+            BlocProvider.value(value: getIt<RoleCubit>()),
+          ],
           child: const DashBoardView(),
         ),
       );
+
     case AppRoutes.addProduct:
       return MaterialPageRoute(builder: (context) => AddProductView());
+
     case AppRoutes.orders:
       return MaterialPageRoute(builder: (context) => OrdersView());
+
     case AppRoutes.DashboardAnalytics:
       return MaterialPageRoute(builder: (context) => DashboardAnalyticsView());
 
@@ -67,18 +77,19 @@ Route<dynamic> onGenerateRoute(RouteSettings settings) {
     case AppRoutes.login:
       return MaterialPageRoute(
         builder: (context) => BlocProvider(
-          // هنا يتم إنشاء نسخة جديدة تماماً للـ Login
           create: (context) => getIt<PharmacyLoginCubit>(),
           child: const LoginView(),
         ),
       );
+
     case AppRoutes.signup:
       return MaterialPageRoute(
         builder: (_) => BlocProvider.value(
-          value: getIt<PharmacySignupCubit>(), // سحب النسخة الجاهزة من GetIt
+          value: getIt<PharmacySignupCubit>(),
           child: const PharmacySignupView(),
         ),
       );
+
     case AppRoutes.forgotPassword:
       return MaterialPageRoute(
         builder: (_) => BlocProvider(
@@ -100,24 +111,25 @@ Route<dynamic> onGenerateRoute(RouteSettings settings) {
 
     case AppRoutes.sendResetPassword:
       return MaterialPageRoute(builder: (_) => const SendResetPassword());
-    case AppRoutes.pendingApproval:
-      return MaterialPageRoute(
-        builder: (_) =>
-            const PendingApprovalView(), // الشاشة التي أنشأناها في الرد السابق
-      );
 
-    case AppRoutes.home:
+    case AppRoutes.pendingApproval:
+      return MaterialPageRoute(builder: (_) => const PendingApprovalView());
+
+    case AppRoutes.inventory:
       return MaterialPageRoute(
         builder: (context) => BlocProvider(
-          create: (context) => getIt<PharmacyLoginCubit>(),
-          child: const DashBoardView(),
+          create: (context) => getIt<InventoryCubit>()..getInventory(),
+          child: const InventoryView(),
         ),
       );
 
     default:
       return MaterialPageRoute(
-        builder: (context) => BlocProvider(
-          create: (context) => getIt<PharmacyLoginCubit>(),
+        builder: (context) => MultiBlocProvider(
+          providers: [
+            BlocProvider(create: (context) => getIt<PharmacyLoginCubit>()),
+            BlocProvider.value(value: getIt<RoleCubit>()),
+          ],
           child: const DashBoardView(),
         ),
       );

@@ -1,5 +1,4 @@
 import 'dart:developer';
-
 import 'package:dartz/dartz.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:fruitesdashboard/core/errors/faliur.dart';
@@ -27,11 +26,15 @@ class ProductRepoImp implements ProductRepo {
         return left(ServerFaliur("❌ يجب تسجيل الدخول أولاً"));
       }
 
+      // 1. تحويل الـ Entity إلى Model لاستخدام toJson
       final productModel = AddProductInputModel.fromentity(addProductIntety);
       final Map<String, dynamic> productJson = productModel.toJson();
 
+      // 2. إضافة الحقول الإضافية الهامة قبل الإرسال لـ Firestore
       productJson['pharmacyId'] = currentPharmacyId;
+      productJson['isPrescriptionRequired'] = addProductIntety.isPrescriptionRequired;
 
+      // تحديد المعرف الفريد للمنتج (الباركود + كود الصيدلية) لضمان عدم التكرار
       final String finalDocId =
           documentId ?? "${addProductIntety.code}_$currentPharmacyId";
 
@@ -41,7 +44,10 @@ class ProductRepoImp implements ProductRepo {
         documentId: finalDocId,
       );
 
-      return right("✅ Product added successfully to Firestore");
+      // 🔥 الإصلاح: إرجاع الـ ID الحقيقي بدلاً من جملة النجاح النصية
+      // لكي يتمكن الـ Cubit من استخدامه لربط المنتج بمجموعة الـ inventory
+      return right(finalDocId); 
+      
     } catch (e, stack) {
       log(
         "❌ Firestore Add Error: $e",
@@ -49,7 +55,7 @@ class ProductRepoImp implements ProductRepo {
         error: e,
         stackTrace: stack,
       );
-      return left(ServerFaliur("❌ Failed to add product: ${e.toString()}"));
+      return left(ServerFaliur("❌ فشل في إضافة المنتج: ${e.toString()}"));
     }
   }
 
@@ -59,7 +65,7 @@ class ProductRepoImp implements ProductRepo {
       final String? currentPharmacyId = _auth.currentUser?.uid;
 
       if (currentPharmacyId == null) {
-        return left(ServerFaliur("❌ غير مسموح بالوصول"));
+        return left(ServerFaliur("❌ غير مسموح بالوصول - يجب تسجيل الدخول"));
       }
 
       final result = await fireStoreService.getData(
@@ -68,12 +74,16 @@ class ProductRepoImp implements ProductRepo {
       );
 
       final List<dynamic> data = result as List<dynamic>;
-      // هنا يتم تحويل الـ List لـ Entities بناءً على الـ Model الخاص بك
-      // List<AddProductIntety> products = data.map((e) => AddProductInputModel.fromJson(e)).toList();
+      
+      // تحويل البيانات من List<Map> إلى List<Entity>
+      List<AddProductIntety> products = data.map((e) {
+        return AddProductInputModel.fromJson(e as Map<String, dynamic>).toEntity();
+      }).toList();
 
-      return left(ServerFaliur("دالة التحويل لم تكتمل بعد"));
+      return right(products);
     } catch (e) {
-      return left(ServerFaliur("❌ فشل جلب المنتجات"));
+      log("❌ Fetch Products Error: $e", name: "ProductRepoImp");
+      return left(ServerFaliur("❌ فشل جلب المنتجات: ${e.toString()}"));
     }
   }
 }

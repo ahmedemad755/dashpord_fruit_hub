@@ -1,0 +1,1 @@
+enum UserRole { manager, warehouseManager, employee }

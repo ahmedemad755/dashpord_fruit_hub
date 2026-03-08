@@ -15,6 +15,7 @@ class ReviewModel {
     required this.image,
   });
 
+  // 1️⃣ تحويل من Entity (الواجهة) إلى Model (البيانات)
   factory ReviewModel.fromentity(ReviewEntite entity) {
     return ReviewModel(
       name: entity.name,
@@ -25,22 +26,18 @@ class ReviewModel {
     );
   }
 
-  ///parser json to data
-  ///يعني تحويل (json) ل (data)
-  ///parsing = تحويل من JSON/String → Object (Model في الكود)
+  // 2️⃣ تحويل من JSON (Firestore) إلى Model
   factory ReviewModel.fromJson(Map<String, dynamic> json) {
     return ReviewModel(
-      name: json['name'],
-      comment: json['comment'],
-      rating: json['rating'],
-      date: json['date'],
-      image: json['image'],
+      name: json['name'] ?? '',
+      comment: json['comment'] ?? '',
+      rating: json['rating'] ?? 0,
+      date: json['date'] ?? '',
+      image: json['image'] ?? '',
     );
   }
 
-  ///serilization data to json
-  ///يعني تحويل (data) ل (json)
-  ///serilization = تحويل من Object (Model في الكود) → JSON/String
+  // 3️⃣ تحويل من Model إلى JSON (للحفظ في Firestore)
   Map<String, dynamic> toJson() {
     return {
       'name': name,
@@ -49,5 +46,16 @@ class ReviewModel {
       'date': date,
       'image': image,
     };
+  }
+
+  // 🔥 4️⃣ الدالة المفقودة: تحويل من Model إلى Entity (لعرض المراجعات في الـ UI)
+  ReviewEntite toEntity() {
+    return ReviewEntite(
+      name: name,
+      comment: comment,
+      rating: rating,
+      date: date,
+      image: image,
+    );
   }
 }

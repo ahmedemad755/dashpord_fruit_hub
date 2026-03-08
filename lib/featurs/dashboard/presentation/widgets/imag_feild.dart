@@ -1,11 +1,12 @@
 import 'dart:io';
-
+import 'package:flutter/foundation.dart'; // ضروري للتعرف على الويب kIsWeb
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:skeletonizer/skeletonizer.dart';
 
 class ImagFeild extends StatefulWidget {
-  final ValueChanged<File?> onImagePicked;
+  // التغيير هنا: نستخدم XFile بدلاً من File
+  final ValueChanged<XFile?> onImagePicked;
   const ImagFeild({super.key, required this.onImagePicked});
 
   @override
@@ -14,52 +15,58 @@ class ImagFeild extends StatefulWidget {
 
 class _ImagFeildState extends State<ImagFeild> {
   bool isLoading = false;
-  File? filImage;
+  XFile? selectedImage; // التغيير هنا ليكون XFile
+
   @override
   Widget build(BuildContext context) {
     return Skeletonizer(
       enabled: isLoading,
       child: GestureDetector(
         onTap: () async {
-          isLoading = true;
-          setState(() {});
+          setState(() => isLoading = true);
           try {
             await pickImage();
-          } on Exception {
-            isLoading = false;
-            setState(() {});
+          } catch (e) {
+            debugPrint("Error picking image: $e");
+          } finally {
+            setState(() => isLoading = false);
           }
-          isLoading = false;
-          setState(() {});
         },
         child: Stack(
           children: [
             Container(
               width: double.infinity,
-
+              height: 200, // حددنا الارتفاع لتجنب مشاكل التصميم
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(16),
                 border: Border.all(color: Colors.grey),
               ),
-              child: filImage != null
+              child: selectedImage != null
                   ? ClipRRect(
                       borderRadius: BorderRadius.circular(16),
-                      child: Image.file(filImage!),
+                      child: kIsWeb
+                          ? Image.network(selectedImage!.path, fit: BoxFit.cover)
+                          : Image.file(File(selectedImage!.path), fit: BoxFit.cover),
                     )
-                  : Icon(Icons.image_outlined, size: 180),
+                  : const Icon(Icons.image_outlined, size: 100),
             ),
-            Visibility(
-              visible: filImage != null,
-              child: IconButton(
-                onPressed: () {
-                  filImage = null;
-                  // widget.onImagePicked(null);
-                  setState(() {});
-                },
-                icon: Icon(Icons.delete),
-                color: Colors.red,
+            if (selectedImage != null)
+              Positioned(
+                right: 8,
+                top: 8,
+                child: CircleAvatar(
+                  backgroundColor: Colors.white,
+                  child: IconButton(
+                    onPressed: () {
+                      setState(() {
+                        selectedImage = null;
+                      });
+                      widget.onImagePicked(null);
+                    },
+                    icon: const Icon(Icons.delete, color: Colors.red),
+                  ),
+                ),
               ),
-            ),
           ],
         ),
       ),
@@ -68,9 +75,13 @@ class _ImagFeildState extends State<ImagFeild> {
 
   Future<void> pickImage() async {
     final ImagePicker picker = ImagePicker();
-    // Pick an image.
     final XFile? image = await picker.pickImage(source: ImageSource.gallery);
-    filImage = File(image!.path);
-    widget.onImagePicked(filImage);
+    
+    if (image != null) {
+      setState(() {
+        selectedImage = image;
+      });
+      widget.onImagePicked(selectedImage);
+    }
   }
 }

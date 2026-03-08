@@ -1,6 +1,8 @@
-import 'dart:io';
+import 'package:image_picker/image_picker.dart'; // استبدال dart:io بـ image_picker
 
 abstract class StorgeService {
-  Future<String?> uploadImage(File file, String path);
+  // تم تغيير النوع من File إلى XFile ليدعم الرفع من المتصفح والموبايل
+  Future<String?> uploadImage(XFile file, String path);
+  
   Future<void> deleteFile(String path);
 }

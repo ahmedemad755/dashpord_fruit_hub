@@ -1,4 +1,3 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:fruitesdashboard/core/enums/order_enum.dart';
 import 'package:fruitesdashboard/featurs/orders/data/domain/enteties/order_entety.dart';
@@ -10,241 +9,239 @@ class OrderItemWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      elevation: 4,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      margin: const EdgeInsets.only(bottom: 16),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // السعر الإجمالي + الحالة
-            Row(
-              children: [
-                Text(
-                  'إجمالي السعر: \$${orderentEntites.totalPrice.toStringAsFixed(2)}',
-                  style: const TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 16,
-                    color: Colors.black87,
-                  ),
+    return Container(
+      padding: const EdgeInsets.all(12),
+      margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey.shade200),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'قيمة الطلب: \$${orderentEntites.totalPrice}',
+                style: const TextStyle(
+                    fontWeight: FontWeight.bold, color: Colors.teal),
+              ),
+              _buildStatusBadge(orderentEntites.status),
+            ],
+          ),
+          const Divider(height: 20),
+          _buildInfoRow(Icons.location_on, "العنوان",
+              orderentEntites.shippingAddressModel.address ?? "لا يوجد عنوان"),
+          _buildInfoRow(Icons.payment, "الدفع",
+              _getPaymentMethodArabic(orderentEntites.paymentMethod)),
+          const SizedBox(height: 12),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // قسم المنتجات
+              Expanded(
+                flex: 2,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text("المنتجات:",
+                        style: TextStyle(
+                            fontWeight: FontWeight.bold, fontSize: 13)),
+                    ...orderentEntites.orderProducts.map((p) => Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 2),
+                          child: Row(
+                            children: [
+                              Text("• ${p.name} (x${p.quantity})",
+                                  style: const TextStyle(fontSize: 12)),
+                              if (p.isPrescriptionRequired)
+                                const Padding(
+                                  padding: EdgeInsets.symmetric(horizontal: 4),
+                                  child: Icon(Icons.assignment_late,
+                                      size: 14, color: Colors.red),
+                                ),
+                            ],
+                          ),
+                        )),
+                  ],
                 ),
-                const Spacer(),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    vertical: 4,
-                    horizontal: 10,
-                  ),
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(10),
-                    color: _getStatusColor(orderentEntites.status),
-                  ),
-                  child: Text(
-                    _getStatusArabicName(orderentEntites.status),
-                    style: const TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.black87,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
+              ),
 
-            // بيانات العميل (الاسم والإيميل)
-            FutureBuilder<DocumentSnapshot>(
-              future: FirebaseFirestore.instance
-                  .collection('user')
-                  .doc(orderentEntites.uId)
-                  .get(),
-              builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Text(
-                    'جاري تحميل بيانات العميل...',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Colors.grey,
-                      fontFamily: 'Cairo',
-                    ),
-                  );
-                }
-                if (snapshot.hasData && snapshot.data!.exists) {
-                  var userData = snapshot.data!.data() as Map<String, dynamic>;
-                  return Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: Colors.blue.withOpacity(0.05),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
+              // ✅ قسم الروشتة (يظهر فقط إذا كانت موجودة في الـ Schema)
+              if (orderentEntites.prescriptionImage != null &&
+                  orderentEntites.prescriptionImage!.isNotEmpty)
+                Expanded(
+                  flex: 1,
+                  child: InkWell(
+                    onTap: () => _showZoomedImage(
+                        context, orderentEntites.prescriptionImage!),
                     child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Row(
-                          children: [
-                            const Icon(
-                              Icons.person,
-                              size: 16,
-                              color: Colors.blue,
+                        const Text("الروشتة",
+                            style: TextStyle(
+                                fontSize: 11,
+                                color: Colors.red,
+                                fontWeight: FontWeight.bold)),
+                        const SizedBox(height: 4),
+                        Container(
+                          height: 90,
+                          width: double.infinity,
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: Colors.red.shade100),
+                            boxShadow: [
+                              BoxShadow(
+                                  color: Colors.black.withOpacity(0.05),
+                                  blurRadius: 4)
+                            ],
+                          ),
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(8),
+                            child: Image.network(
+                              orderentEntites.prescriptionImage!,
+                              fit: BoxFit.cover,
+                              loadingBuilder: (context, child, progress) {
+                                if (progress == null) return child;
+                                return const Center(
+                                    child: CircularProgressIndicator(
+                                        strokeWidth: 2));
+                              },
+                              errorBuilder: (context, error, stackTrace) =>
+                                  const Icon(Icons.broken_image,
+                                      color: Colors.grey),
                             ),
-                            const SizedBox(width: 8),
-                            Text(
-                              'العميل: ${userData['name'] ?? 'اسم غير مسجل'}',
-                              style: const TextStyle(
-                                fontSize: 14,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.blue,
-                              ),
-                            ),
-                          ],
+                          ),
                         ),
                         const SizedBox(height: 4),
-                        Row(
-                          children: [
-                            const Icon(
-                              Icons.email,
-                              size: 14,
-                              color: Colors.black54,
-                            ),
-                            const SizedBox(width: 8),
-                            Text(
-                              'البريد: ${userData['email'] ?? 'لا يوجد بريد'}',
-                              style: const TextStyle(
-                                fontSize: 12,
-                                color: Colors.black54,
-                              ),
-                            ),
-                          ],
-                        ),
+                        const Text("إضغط للتكبير",
+                            style: TextStyle(fontSize: 9, color: Colors.blue)),
                       ],
                     ),
-                  );
-                }
-                return Text(
-                  'معرف المستخدم: ${orderentEntites.uId}',
-                  style: const TextStyle(fontSize: 13, color: Colors.grey),
-                );
-              },
-            ),
-            const SizedBox(height: 16),
-
-            const Text(
-              'عنوان الشحن:',
-              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
-            ),
-            Text(
-              orderentEntites.shippingAddressModel.toString(),
-              style: const TextStyle(fontSize: 14, color: Colors.black87),
-            ),
-            const SizedBox(height: 12),
-
-            Row(
-              children: [
-                const Text(
-                  'طريقة الدفع: ',
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                  ),
+                )
+              else if (orderentEntites.orderProducts
+                  .any((p) => p.isPrescriptionRequired))
+                // تنبيه في حال وجود دواء يحتاج روشتة وهي غير مرفقة
+                const Expanded(
+                  flex: 1,
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.warning_amber_rounded,
+                          color: Colors.orange, size: 24),
+                      Text("الروشتة مفقودة!",
+                          textAlign: TextAlign.center,
+                          style: TextStyle(fontSize: 10, color: Colors.orange)),
+                    ],
+                  ),
                 ),
-                Text(
-                  _getPaymentMethodArabic(orderentEntites.paymentMethod),
-                  style: const TextStyle(fontSize: 14, color: Colors.blueGrey),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
+            ],
+          ),
+          const SizedBox(height: 16),
+          OrderActionButtons(
+            orderEntity: orderentEntites,
+            orderID: orderentEntites.orderID,
+          ),
+        ],
+      ),
+    );
+  }
 
-            const Divider(),
-            const Text(
-              'المنتجات المطلوبة:',
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: 15,
-                color: Colors.teal,
+  // دالة المعاينة المحسنة مع إمكانية التكبير (Zoom)
+  void _showZoomedImage(BuildContext context, String url) {
+    showDialog(
+      context: context,
+      builder: (context) => Dialog(
+        backgroundColor: Colors.transparent,
+        insetPadding: const EdgeInsets.all(10),
+        child: Stack(
+          alignment: Alignment.topRight,
+          children: [
+            Container(
+              width: double.infinity,
+              height: MediaQuery.of(context).size.height * 0.7,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(15),
+              ),
+              child: Column(
+                children: [
+                  const Padding(
+                    padding: EdgeInsets.all(12.0),
+                    child: Text("فحص الروشتة الطبية",
+                        style: TextStyle(fontWeight: FontWeight.bold)),
+                  ),
+                  Expanded(
+                    child: ClipRRect(
+                      borderRadius: const BorderRadius.only(
+                        bottomLeft: Radius.circular(15),
+                        bottomRight: Radius.circular(15),
+                      ),
+                      child: InteractiveViewer(
+                        panEnabled: true,
+                        minScale: 1.0,
+                        maxScale: 5.0,
+                        child: Image.network(
+                          url,
+                          fit: BoxFit.contain,
+                          width: double.infinity,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
-            const SizedBox(height: 8),
-
-            ListView.builder(
-              itemCount: orderentEntites.orderProducts.length,
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              itemBuilder: (context, index) {
-                final product = orderentEntites.orderProducts[index];
-                return ListTile(
-                  contentPadding: EdgeInsets.zero,
-                  leading: ClipRRect(
-                    borderRadius: BorderRadius.circular(8),
-                    child: Image.network(
-                      product.imageUrl,
-                      width: 50,
-                      height: 50,
-                      fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) =>
-                          const Icon(Icons.medication),
-                    ),
-                  ),
-                  title: Text(
-                    product.name,
-                    style: const TextStyle(fontWeight: FontWeight.bold),
-                  ),
-                  subtitle: Text(
-                    'الكمية: ${product.quantity} | سعر الوحدة: \$${product.price.toStringAsFixed(2)}',
-                    style: const TextStyle(fontSize: 12),
-                  ),
-                  trailing: Text(
-                    '\$${(product.price * product.quantity).toStringAsFixed(2)}',
-                    style: const TextStyle(
-                      fontWeight: FontWeight.bold,
-                      color: Colors.green,
-                    ),
-                  ),
-                );
-              },
+            Padding(
+              padding: const EdgeInsets.all(8.0),
+              child: IconButton(
+                icon: const CircleAvatar(
+                  backgroundColor: Colors.black54,
+                  child: Icon(Icons.close, color: Colors.white, size: 20),
+                ),
+                onPressed: () => Navigator.pop(context),
+              ),
             ),
-            const SizedBox(height: 16),
-            OrderActionButtons(orderEntity: orderentEntites),
           ],
         ),
       ),
     );
   }
 
-  // دالة مساعدة لترجمة حالة الطلب
-  String _getStatusArabicName(OrderStatus status) {
-    switch (status) {
-      case OrderStatus.pending:
-        return 'قيد الانتظار';
-      case OrderStatus.shipped:
-        return 'تم الشحن';
-      case OrderStatus.delivered:
-        return 'تم التوصيل';
-      case OrderStatus.canceled:
-        return 'ملغي';
-      default:
-        return 'غير معروف';
-    }
+  Widget _buildInfoRow(IconData icon, String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 4),
+      child: Row(
+        children: [
+          Icon(icon, size: 14, color: Colors.grey),
+          const SizedBox(width: 6),
+          Text("$label: ",
+              style:
+                  const TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+          Expanded(
+              child: Text(value,
+                  style: const TextStyle(fontSize: 12),
+                  overflow: TextOverflow.ellipsis)),
+        ],
+      ),
+    );
   }
 
-  // دالة مساعدة لتحديد لون الحالة
-  Color _getStatusColor(OrderStatus status) {
-    switch (status) {
-      case OrderStatus.pending:
-        return Colors.orange.shade200;
-      case OrderStatus.shipped:
-        return Colors.blue.shade200;
-      case OrderStatus.delivered:
-        return Colors.green.shade200;
-      case OrderStatus.canceled:
-        return Colors.red.shade200;
-      default:
-        return Colors.grey.shade300;
-    }
+  Widget _buildStatusBadge(OrderStatus status) {
+    Color color =
+        status == OrderStatus.delivered ? Colors.green : Colors.orange;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+          color: color.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(6)),
+      child: Text(status.name,
+          style: TextStyle(
+              color: color, fontSize: 11, fontWeight: FontWeight.bold)),
+    );
   }
 
-  // دالة مساعدة لتعريب طريقة الدفع
-  String _getPaymentMethodArabic(String method) {
-    if (method.toLowerCase() == 'cash') return 'نقداً عند الاستلام';
-    if (method.toLowerCase() == 'card') return 'بطاقة ائتمان';
-    return method; // إرجاع القيمة كما هي إذا لم تكن كاش أو كارت
-  }
+  String _getPaymentMethodArabic(String method) =>
+      method.toLowerCase() == 'cash' ? 'كاش' : 'بطاقة ائتمان';
 }
