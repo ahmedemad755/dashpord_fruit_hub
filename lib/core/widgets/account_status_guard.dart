@@ -2,6 +2,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:fruitesdashboard/core/di/injection.dart';
+import 'package:fruitesdashboard/core/services/account_status_service.dart';
 import 'package:fruitesdashboard/featurs/auth/presentation/cubits/login/pharmacy_login_cubit.dart';
 import 'package:fruitesdashboard/featurs/auth/presentation/cubits/login/pharmacy_login_state.dart';
 
@@ -22,6 +23,18 @@ class AccountStatusGuard extends StatelessWidget {
       create: (_) => getIt<PharmacyLoginCubit>()..watchPharmacyStatus(uid),
       child: BlocListener<PharmacyLoginCubit, PharmacyLoginState>(
         listener: (context, state) {
+          if (state is PharmacyLoginSuccess &&
+              AccountStatusService.isRejectedStatus(
+                state.pharmacyEntity.status,
+              )) {
+            Navigator.pushNamedAndRemoveUntil(
+              context,
+              'pendingApproval',
+              (route) => false,
+            );
+            return;
+          }
+
           if (state is AccountDisabledLogout) {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(content: Text(state.message)),

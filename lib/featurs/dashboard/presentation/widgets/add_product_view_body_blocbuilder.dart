@@ -30,7 +30,7 @@ class AddProductViewBodyBlocbuilder extends StatelessWidget {
           buildBar(context, state.message, backgroundColor: Colors.red);
           Navigator.pushNamedAndRemoveUntil(
             context,
-            AppRoutes.login,
+            AppRoutes.pendingApproval,
             (route) => false,
           );
         }

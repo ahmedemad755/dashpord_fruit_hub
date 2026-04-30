@@ -23,8 +23,6 @@ class AccountStatusService {
   static bool isDisabledStatus(String status) {
     final normalized = status.trim().toLowerCase();
     return normalized == 'disabled' ||
-        normalized == 'rejected' ||
-        normalized == 'reject' ||
         normalized == 'cancelled' ||
         normalized == 'canceled' ||
         normalized == 'inactive' ||
@@ -33,6 +31,15 @@ class AccountStatusService {
         normalized == 'الغاء' ||
         normalized == 'ملغي' ||
         normalized == 'ملغى';
+  }
+
+  static bool isRejectedStatus(String status) {
+    final normalized = status.trim().toLowerCase();
+    return normalized == 'rejected' || normalized == 'reject';
+  }
+
+  static bool canWriteWithStatus(String status) {
+    return status.trim().toLowerCase() == 'approved';
   }
 
   Future<String> getCurrentStatus(String pharmacyId) async {
@@ -46,7 +53,7 @@ class AccountStatusService {
 
   Future<void> ensureAccountCanWrite(String pharmacyId) async {
     final status = await getCurrentStatus(pharmacyId);
-    if (isDisabledStatus(status)) {
+    if (!canWriteWithStatus(status)) {
       throw const AccountDisabledException();
     }
   }

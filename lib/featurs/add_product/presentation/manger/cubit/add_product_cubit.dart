@@ -58,15 +58,20 @@ Future<XFile?> _compressImage(XFile file) async {
     String? documentId,
   }) async {
     emit(AddProductLoading());
+    final pharmacyId = addProductIntety.pharmacyId;
 
     Future<bool> canContinueWriting() async {
+      if (pharmacyId == null || pharmacyId.trim().isEmpty) {
+        emit(AddProductError(error: 'تعذر تحديد الصيدلية الحالية'));
+        return false;
+      }
+
       try {
         await _accountStatusService.ensureAccountCanWrite(
-          addProductIntety.pharmacyId!,
+          pharmacyId,
         );
         return true;
       } on AccountDisabledException catch (e) {
-        await _accountStatusService.forceLogoutDisabledAccount();
         emit(AddProductAccountDisabled(message: e.message));
         return false;
       }
@@ -97,8 +102,7 @@ Future<XFile?> _compressImage(XFile file) async {
           final firestore = FirebaseFirestore.instance;
           // تأكيد الـ ID الموحد: (باركود المنتج _ معرف الصيدلية)
           final String finalDocId =
-              documentId ??
-              "${addProductIntety.code}_${addProductIntety.pharmacyId}";
+              documentId ?? "${addProductIntety.code}_$pharmacyId";
 
           // 2️⃣ استخدام Write Batch لضمان الإضافة في "المنتجات" و "المخزن" معاً
           final batch = firestore.batch();
@@ -117,7 +121,7 @@ Future<XFile?> _compressImage(XFile file) async {
             addProductIntety,
           );
           final productJson = productModel.toJson();
-          productJson['pharmacyId'] = addProductIntety.pharmacyId;
+          productJson['pharmacyId'] = pharmacyId;
           productJson['isPrescriptionRequired'] =
               addProductIntety.isPrescriptionRequired;
           productJson['pharmacyName'] =
@@ -137,7 +141,7 @@ Future<XFile?> _compressImage(XFile file) async {
             'quantity': FieldValue.increment(
               addProductIntety.unitAmount ?? 0,
             ), // زيادة المخزن لو المنتج موجود
-            'pharmacyId': addProductIntety.pharmacyId,
+            'pharmacyId': pharmacyId,
             'category': addProductIntety.category,
 
             'expiryDate': Timestamp.fromDate(expiryDateTime),
