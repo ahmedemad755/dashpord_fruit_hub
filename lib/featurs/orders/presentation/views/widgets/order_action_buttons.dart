@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:fruitesdashboard/core/enums/order_enum.dart';
 import 'package:fruitesdashboard/featurs/orders/data/domain/enteties/order_entety.dart';
 import 'package:fruitesdashboard/featurs/orders/presentation/manger/update_order/update_order_cubit.dart';
+import 'package:fruitesdashboard/featurs/orders/presentation/views/widgets/prescription_pricing_dialog.dart'; // تأكد من إنشاء هذا الملف
 
 class OrderActionButtons extends StatelessWidget {
   const OrderActionButtons({
@@ -51,13 +52,25 @@ class OrderActionButtons extends StatelessWidget {
 
   // تحديد الزر الرئيسي بناءً على الحالة الحالية
   Widget _buildMainAction(BuildContext context) {
+    // فحص وجود روشتة
+    bool hasPrescription = orderEntity.prescriptionImage != null &&
+        orderEntity.prescriptionImage!.isNotEmpty;
+
     if (orderEntity.status == OrderStatus.pending) {
+      // إذا كان الطلب معلقاً وبه روشتة، يتم فتح واجهة التسعير
+      // أما إذا كان طلباً عادياً، يتم الشحن مباشرة
       return _buildActionButton(
         context,
-        label: "تأكيد وشحن الطلب",
-        icon: Icons.local_shipping_outlined,
-        color: Colors.teal,
-        onPressed: () => _updateStatus(context, OrderStatus.shipped),
+        label: hasPrescription ? "تسعير وشحن الروشتة" : "تأكيد وشحن الطلب",
+        icon: hasPrescription ? Icons.receipt_long : Icons.local_shipping_outlined,
+        color: hasPrescription ? Colors.blueAccent : Colors.teal,
+        onPressed: () {
+          if (hasPrescription) {
+            _showPricingDialog(context);
+          } else {
+            _updateStatus(context, OrderStatus.shipped);
+          }
+        },
       );
     } else if (orderEntity.status == OrderStatus.shipped) {
       return _buildActionButton(
@@ -71,13 +84,28 @@ class OrderActionButtons extends StatelessWidget {
     return const SizedBox.shrink();
   }
 
+  // دالة لفتح واجهة إضافة الأدوية للروشتة
+  void _showPricingDialog(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (_) => BlocProvider.value(
+        value: context.read<UpdateOrderCubit>(),
+        child: PrescriptionPricingDialog(orderEntity: orderEntity),
+      ),
+    );
+  }
+
   // دالة مساعدة لتنفيذ التحديث عبر الـ Cubit
   void _updateStatus(BuildContext context, OrderStatus newStatus) {
     context.read<UpdateOrderCubit>().updateOrder(
-      status: newStatus,
-      orderID: orderID,
-      orderEntity: orderEntity,
-    );
+          status: newStatus,
+          orderID: orderID,
+          orderEntity: orderEntity,
+        );
   }
 
   Widget _buildActionButton(

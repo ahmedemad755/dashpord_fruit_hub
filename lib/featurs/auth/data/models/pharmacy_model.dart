@@ -16,6 +16,8 @@ class PharmacyModel extends PharmacyEntity {
     required super.pharmacistId,
     required super.licenseNumber,
     required super.nationalId,
+    required super.lat,
+    required super.lng,
     super.rejectionReason,
   });
 
@@ -37,6 +39,8 @@ class PharmacyModel extends PharmacyEntity {
       createdAt: json['createdAt'] != null
           ? (json['createdAt'] as Timestamp).toDate()
           : DateTime.now(),
+      lat: json['lat'] != null ? (json['lat'] as num).toDouble() : 0.0,
+      lng: json['lng'] != null ? (json['lng'] as num).toDouble() : 0.0,
     );
   }
 
@@ -56,6 +60,9 @@ class PharmacyModel extends PharmacyEntity {
       'createdAt': createdAt,
       'nationalId': nationalId,
       'rejectionReason': rejectionReason,
+      'lat': lat,
+      'lng': lng,
+
     };
   }
 
@@ -75,6 +82,8 @@ class PharmacyModel extends PharmacyEntity {
       licenseNumber: entity.licenseNumber,
       nationalId: entity.nationalId,
       rejectionReason: entity.rejectionReason,
+      lat: entity.lat,
+      lng: entity.lng,
     );
   }
 }

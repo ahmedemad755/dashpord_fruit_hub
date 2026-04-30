@@ -14,8 +14,10 @@ class OrderModel {
   final List<OrderProductModel> orderProducts;
   final String paymentMethod;
   final String orderID;
-  final String pharmacyId; // 🔹 إضافة الحقل هنا
+  final String pharmacyId;
+  final String? pharmacyName;
   final String? prescriptionImage;
+  final String? cancelledBy;
 
   const OrderModel({
     this.id,
@@ -27,8 +29,10 @@ class OrderModel {
     required this.orderProducts,
     required this.paymentMethod,
     required this.orderID,
-    required this.pharmacyId, // 🔹 إضافة الحقل هنا
+    required this.pharmacyId,
+    this.pharmacyName,
     this.prescriptionImage,
+    this.cancelledBy,
   });
 
   factory OrderModel.fromJson(Map<String, dynamic> json, {String? id}) {
@@ -37,21 +41,21 @@ class OrderModel {
       date: json['date'] is Timestamp
           ? (json['date'] as Timestamp).toDate()
           : json['date'] is String
-          ? DateTime.tryParse(json['date'].toString().replaceFirst(' ', 'T'))
-          : null,
-          prescriptionImage: json['prescriptionImage']?.toString(),
+              ? DateTime.tryParse(json['date'].toString().replaceFirst(' ', 'T'))
+              : null,
+      prescriptionImage: json['prescriptionImage']?.toString(),
       status: json['status']?.toString() ?? 'pending',
+      cancelledBy: json['cancelledBy']?.toString(),
       totalPrice: (json['totalPrice'] as num?)?.toDouble() ?? 0.0,
       uId: json['uId']?.toString() ?? '',
-      pharmacyId: json['pharmacyId']?.toString() ?? '', // 🔹 قراءة pharmacyId
+      pharmacyId: json['pharmacyId']?.toString() ?? '',
+      pharmacyName: json['pharmacyName'],
       shippingAddressModel: ShippingAddressModel.fromJson(
         json['shippingAddressModel'] is Map
             ? Map<String, dynamic>.from(json['shippingAddressModel'])
             : <String, dynamic>{},
-
       ),
-      orderProducts:
-          (json['orderProducts'] as List<dynamic>?)
+      orderProducts: (json['orderProducts'] as List<dynamic>?)
               ?.map<OrderProductModel>(
                 (e) => OrderProductModel.fromJson(
                   Map<String, dynamic>.from(e as Map),
@@ -69,7 +73,8 @@ class OrderModel {
       if (id != null) 'id': id,
       'date': date?.toIso8601String() ?? DateTime.now().toIso8601String(),
       'uId': uId,
-      'pharmacyId': pharmacyId, // 🔹 حفظ pharmacyId
+      'pharmacyId': pharmacyId,
+      'pharmacyName': pharmacyName,
       'status': status ?? 'pending',
       'totalPrice': totalPrice,
       'shippingAddressModel': shippingAddressModel.toJson(),
@@ -77,6 +82,7 @@ class OrderModel {
       'paymentMethod': paymentMethod,
       'orderID': orderID,
       'prescriptionImage': prescriptionImage,
+      if (cancelledBy != null) 'cancelledBy': cancelledBy,
     };
   }
 
@@ -90,7 +96,9 @@ class OrderModel {
       orderProducts: orderProducts.map((e) => e.toEntity()).toList(),
       paymentMethod: paymentMethod,
       status: fetchEnum(),
-      // ملاحظة: إذا كانت OrderEntity تحتاج الـ pharmacyId، يجب إضافته هناك أيضاً
+      cancelledBy: cancelledBy,
+      pharmacyId: pharmacyId, // تم التأكد من تمريره هنا
+      pharmacyName: pharmacyName, // تم التأكد من تمريره هنا
     );
   }
 
@@ -99,8 +107,10 @@ class OrderModel {
       orderID: entity.orderID,
       totalPrice: entity.totalPrice,
       uId: entity.uId,
-      // إذا كان الـ entity لا يحتوي على pharmacyId، يمكن تمرير قيمة فارغة أو تعديل الـ Entity لاحقاً
-      pharmacyId: '',
+      pharmacyId: entity.pharmacyId ?? '',
+      pharmacyName: entity.pharmacyName ?? '',
+      prescriptionImage: entity.prescriptionImage,
+      cancelledBy: entity.cancelledBy,
       shippingAddressModel: entity.shippingAddressModel is ShippingAddressModel
           ? entity.shippingAddressModel as ShippingAddressModel
           : ShippingAddressModel(
@@ -113,15 +123,7 @@ class OrderModel {
             ),
       orderProducts: entity.orderProducts
           .map(
-            (e) => e is OrderProductModel
-                ? e
-                : OrderProductModel(
-                    name: e.name,
-                    code: e.code,
-                    imageUrl: e.imageUrl,
-                    price: e.price,
-                    quantity: e.quantity,
-                  ),
+            (e) => OrderProductModel.fromEntity(e),
           )
           .toList(),
       paymentMethod: entity.paymentMethod,

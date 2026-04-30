@@ -23,6 +23,8 @@ class AddProductBody extends StatefulWidget {
   num? discountPercentage = 0;
   String? selectedCategory;
   String? pharmacyName;
+  double? pharmacyLat;
+  double? pharmacyLng;
   bool isPrescriptionRequired = false;
 
   AddProductBody({
@@ -37,6 +39,9 @@ class AddProductBody extends StatefulWidget {
     this.unitAmount,
     this.pharmacyId,
     this.pharmacyName,
+    this.pharmacyLat,
+    this.pharmacyLng,
+
   });
 
   @override
@@ -296,6 +301,8 @@ class _AddProductBodyState extends State<AddProductBody> {
       if (!firestoreSnapshot.hasData || !firestoreSnapshot.data!.exists) return const SizedBox();
       
       var data = firestoreSnapshot.data!.data() as Map<String, dynamic>;
+      widget.pharmacyLat = (data['lat'] as num?)?.toDouble() ?? 0.0;
+      widget.pharmacyLng = (data['lng'] as num?)?.toDouble() ?? 0.0;
       
       // ✅ الحل: التحديث فقط إذا كانت القيم مختلفة وليس في كل ريندر
       if (pharmacyNameController.text != data['pharmacyName']) {
@@ -366,36 +373,60 @@ class _AddProductBodyState extends State<AddProductBody> {
   Widget buildAddButton() => GradientButton(
     gradientColors: const [Colors.teal, Colors.green],
     label: "تأكيد وإضافة الدواء",
-    onPressed: () {
-      if (widget.image == null) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("يرجى اختيار صورة للمنتج")));
-        return;
-      }
-      if (formKey.currentState!.validate()) {
-        formKey.currentState!.save();
-        final entite = AddProductIntety(
-          category: widget.selectedCategory!,
-          name: widget.name ?? '',
-          price: widget.price ?? 0,
-          code: widget.code ?? '',
-          description: widget.description ?? '',
-          image: widget.image!,
-          expirationDate: widget.expirationDate ?? 0,
-          unitAmount: widget.unitAmount ?? 0,
-          reviews: const [],
-          hasDiscount: widget.hasDiscount,
-          discountPercentage: widget.discountPercentage ?? 0,
-          pharmacyId: widget.pharmacyId,
-          cost: widget.cost ?? 0,
-          isPrescriptionRequired: widget.isPrescriptionRequired,
-        );
-        context.read<AddProductCubit>().addProduct(
-          entite,
-          documentId: "${widget.code}_${widget.pharmacyId}",
+onPressed: () {
+  if (widget.image == null) {
+    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("يرجى اختيار صورة للمنتج")));
+    return;
+  }
+  
+  if (formKey.currentState!.validate()) {
+    formKey.currentState!.save();
+
+    // --- الحل هنا: تحويل الـ int (مثل 20270311) إلى DateTime ---
+    DateTime expiry;
+    try {
+      String dateStr = widget.expirationDate.toString();
+      if (dateStr.length == 8) {
+        expiry = DateTime(
+          int.parse(dateStr.substring(0, 4)), // السنة
+          int.parse(dateStr.substring(4, 6)), // الشهر
+          int.parse(dateStr.substring(6, 8)), // اليوم
         );
       } else {
-        setState(() => autovalidateMode = AutovalidateMode.always);
+        expiry = DateTime.now(); // قيمة افتراضية في حال الخطأ
       }
-    },
+    } catch (e) {
+      expiry = DateTime.now();
+    }
+
+    final entite = AddProductIntety(
+      category: widget.selectedCategory!,
+      name: widget.name ?? '',
+      price: widget.price ?? 0,
+      code: widget.code ?? '',
+      description: widget.description ?? '',
+      image: widget.image!,
+      // نمرر الـ DateTime الجديد هنا
+      expirationDate: expiry, 
+      unitAmount: widget.unitAmount ?? 0,
+      reviews: const [],
+      hasDiscount: widget.hasDiscount,
+      discountPercentage: widget.discountPercentage ?? 0,
+      pharmacyId: widget.pharmacyId,
+      cost: widget.cost ?? 0,
+      isPrescriptionRequired: widget.isPrescriptionRequired,
+      pharmacyName: widget.pharmacyName ?? '',
+      pharmacyLat: widget.pharmacyLat ?? 0.0,
+      pharmacyLng: widget.pharmacyLng ?? 0.0,
+    );
+
+    context.read<AddProductCubit>().addProduct(
+      entite,
+      documentId: "${widget.code}_${widget.pharmacyId}",
+    );
+  } else {
+    setState(() => autovalidateMode = AutovalidateMode.always);
+  }
+},
   );
 }

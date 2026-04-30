@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:fruitesdashboard/core/services/database_service.dart';
+import 'package:fruitesdashboard/core/utils/backend_points.dart';
 import 'package:fruitesdashboard/featurs/inventory/data/models/inventory_model.dart';
 import 'package:fruitesdashboard/featurs/inventory/domain/entities/inventory_entity.dart';
 import 'package:fruitesdashboard/featurs/inventory/domain/repos/inventory_repo.dart';
@@ -10,9 +11,10 @@ class InventoryRepoImpl implements InventoryRepo {
   InventoryRepoImpl(this.databaseService);
 
   @override
-  Stream<List<InventoryEntity>> getInventoryStream() {
+  Stream<List<InventoryEntity>> getInventoryStream(String pharmacyId) {
     return FirebaseFirestore.instance
-        .collection('inventory') // ✅ الكوليكشن الصحيح
+        .collection(BackendPoints.inventory)
+        .where('pharmacyId', isEqualTo: pharmacyId) // ✅ الكوليكشن الصحيح
         .snapshots()
         .map((snapshot) {
           return snapshot.docs
@@ -24,7 +26,7 @@ class InventoryRepoImpl implements InventoryRepo {
   @override
   Future<void> updateStockQuantity(String inventoryId, int newQuantity) async {
     await FirebaseFirestore.instance
-        .collection('inventory')
+        .collection(BackendPoints.inventory) 
         .doc(inventoryId)
         .update({'quantity': newQuantity});
   }
@@ -32,7 +34,7 @@ class InventoryRepoImpl implements InventoryRepo {
   @override
   Future<void> deleteInventoryItem(String inventoryId) async {
     await FirebaseFirestore.instance
-        .collection('inventory')
+        .collection(BackendPoints.inventory)
         .doc(inventoryId)
         .delete();
   }
@@ -43,6 +45,7 @@ class InventoryRepoImpl implements InventoryRepo {
     final model = InventoryModel(
       id: inventory.id,
       productId: inventory.productId,
+      pharmacyId: inventory.pharmacyId,
       productName: inventory.productName,
       productImageUrl: inventory.productImageUrl,
       quantity: inventory.quantity,
@@ -58,11 +61,11 @@ class InventoryRepoImpl implements InventoryRepo {
 
     if (model.id.isEmpty) {
       await FirebaseFirestore.instance
-          .collection('inventory')
+          .collection(BackendPoints.inventory)
           .add(model.toMap());
     } else {
       await FirebaseFirestore.instance
-          .collection('inventory')
+          .collection(BackendPoints.inventory)
           .doc(model.id)
           .update(model.toMap());
     }

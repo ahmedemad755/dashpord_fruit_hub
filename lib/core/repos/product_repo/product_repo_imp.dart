@@ -32,6 +32,9 @@ class ProductRepoImp implements ProductRepo {
 
       // 2. إضافة الحقول الإضافية الهامة قبل الإرسال لـ Firestore
       productJson['pharmacyId'] = currentPharmacyId;
+      productJson['pharmacyName'] = addProductIntety.pharmacyName;
+      productJson['pharmacyLat'] = addProductIntety.pharmacyLat;
+      productJson['pharmacyLng'] = addProductIntety.pharmacyLng;
       productJson['isPrescriptionRequired'] = addProductIntety.isPrescriptionRequired;
 
       // تحديد المعرف الفريد للمنتج (الباركود + كود الصيدلية) لضمان عدم التكرار

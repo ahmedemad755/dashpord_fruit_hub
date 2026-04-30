@@ -6,13 +6,16 @@ class OrderEntity {
   final double totalPrice;
   final String uId;
   final String orderID;
+
   final String? pharmacyId; // 👈 إضافة الحقل هنا
+  final String? pharmacyName; // 👈 إضافة الحقل هنا
   final ShippingAddressEntity shippingAddressModel;
   final List<OrderProductEntity> orderProducts;
   final String paymentMethod;
   final String? prescriptionImage;
   final OrderStatus status;
   final String? prescriptionImageUrl;
+final String? cancelledBy;
 
 
 
@@ -26,6 +29,8 @@ class OrderEntity {
     required this.orderProducts,
     required this.paymentMethod,
       this.prescriptionImageUrl,
-      this.prescriptionImage
+      this.prescriptionImage,
+      this.cancelledBy,
+    this.pharmacyName, // 👈 إضافته للـ Constructor
   });
 }

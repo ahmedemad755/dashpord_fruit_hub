@@ -28,14 +28,18 @@ class OrderItemWidget extends StatelessWidget {
                 style: const TextStyle(
                     fontWeight: FontWeight.bold, color: Colors.teal),
               ),
-              _buildStatusBadge(orderentEntites.status),
+              _buildStatusBadge(orderentEntites), // تمرير الكيان بالكامل لفحص حقول إضافية
             ],
           ),
           const Divider(height: 20),
+          _buildInfoRow(Icons.location_on, "الاسم",
+              orderentEntites.shippingAddressModel.name ?? "لا يوجد اسم"),
           _buildInfoRow(Icons.location_on, "العنوان",
               orderentEntites.shippingAddressModel.address ?? "لا يوجد عنوان"),
+              
           _buildInfoRow(Icons.payment, "الدفع",
               _getPaymentMethodArabic(orderentEntites.paymentMethod)),
+          _buildInfoRow(Icons.phone, "رقم الهاتف", orderentEntites.shippingAddressModel.phone ?? "غير متوفر"),
           const SizedBox(height: 12),
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -68,7 +72,7 @@ class OrderItemWidget extends StatelessWidget {
                 ),
               ),
 
-              // ✅ قسم الروشتة (يظهر فقط إذا كانت موجودة في الـ Schema)
+              // قسم الروشتة
               if (orderentEntites.prescriptionImage != null &&
                   orderentEntites.prescriptionImage!.isNotEmpty)
                 Expanded(
@@ -122,7 +126,6 @@ class OrderItemWidget extends StatelessWidget {
                 )
               else if (orderentEntites.orderProducts
                   .any((p) => p.isPrescriptionRequired))
-                // تنبيه في حال وجود دواء يحتاج روشتة وهي غير مرفقة
                 const Expanded(
                   flex: 1,
                   child: Column(
@@ -148,7 +151,6 @@ class OrderItemWidget extends StatelessWidget {
     );
   }
 
-  // دالة المعاينة المحسنة مع إمكانية التكبير (Zoom)
   void _showZoomedImage(BuildContext context, String url) {
     showDialog(
       context: context,
@@ -228,17 +230,50 @@ class OrderItemWidget extends StatelessWidget {
     );
   }
 
-  Widget _buildStatusBadge(OrderStatus status) {
-    Color color =
-        status == OrderStatus.delivered ? Colors.green : Colors.orange;
+  Widget _buildStatusBadge(OrderEntity order) {
+    Color color;
+    String statusText;
+
+    switch (order.status) {
+      case OrderStatus.delivered:
+        color = Colors.green;
+        statusText = "تم التوصيل";
+        break;
+      case OrderStatus.canceled:
+        color = Colors.red;
+        // فحص من قام بالإلغاء بناءً على البيانات القادمة من Firestore
+        // ملاحظة: تأكد أن OrderEntity يحتوي على حقل cancelledBy أو قم بالوصول إليه من الموديل
+        if (order.cancelledBy == 'customer') {
+          statusText = "ألغاه العميل";
+        } else {
+          statusText = "ملغي";
+        }
+        break;
+      case OrderStatus.shipped:
+        color = Colors.blue;
+        statusText = "تم الشحن";
+        break;
+      case OrderStatus.pending:
+      default:
+        color = Colors.orange;
+        statusText = "قيد الانتظار";
+    }
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-          color: color.withOpacity(0.1),
-          borderRadius: BorderRadius.circular(6)),
-      child: Text(status.name,
-          style: TextStyle(
-              color: color, fontSize: 11, fontWeight: FontWeight.bold)),
+        color: color.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(color: color.withOpacity(0.3), width: 0.5),
+      ),
+      child: Text(
+        statusText,
+        style: TextStyle(
+          color: color,
+          fontSize: 11,
+          fontWeight: FontWeight.bold,
+        ),
+      ),
     );
   }
 

@@ -13,7 +13,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-
+  
   // 1️⃣ تأكد من تهيئة Shared Preferences أولاً لأن التطبيق يعتمد عليه في التحقق من الدخول
   await Prefs.init();
 
@@ -26,7 +26,7 @@ void main() async {
   // تأكد من وجود البوكيت (Bucket) لرفع صور الأدوية
   final storageService = SupabaseStorgeService();
   await storageService.ensureBucketExists(supabaseBucketName);
-
+ 
   // 4️⃣ إعداد حقن الاعتماديات (Dependency Injection)
   setupGetIt();
 

@@ -16,6 +16,8 @@ abstract class PharmacyAuthRepo {
     required String pharmacistId,
     required String licenseNumber,
     required String nationalId,
+      required double lat,   
+  required double lng,
   });
 
   // تسجيل دخول الصيدلية وفحص الحالة (Approved/Pending)

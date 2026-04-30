@@ -14,3 +14,16 @@ final class UpdateOrderFailure extends UpdateOrderState {
 }
 
 final class UpdateOrderSuccess extends UpdateOrderState {}
+
+// الحالة الخاصة بالتحديث اللحظي لقائمة الأدوية والسعر
+final class UpdateOrderProductsChanged extends UpdateOrderState {
+  final List<OrderProductEntity> tempProducts;
+  final double totalPrice;
+  final DateTime timeStamp; // لضمان إعادة بناء الواجهة عند كل تغيير
+
+  UpdateOrderProductsChanged({
+    required this.tempProducts,
+    required this.totalPrice,
+    required this.timeStamp,
+  });
+}

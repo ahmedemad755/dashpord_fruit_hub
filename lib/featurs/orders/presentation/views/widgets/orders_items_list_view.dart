@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:fruitesdashboard/core/utils/backend_points.dart';
 import 'package:fruitesdashboard/featurs/orders/data/domain/enteties/order_entety.dart';
 import 'package:fruitesdashboard/featurs/orders/presentation/views/widgets/order_item.dart';
 
@@ -67,12 +68,12 @@ class OrdersItemsListView extends StatelessWidget {
 
   Widget _buildUserName(String userId) {
     return FutureBuilder<DocumentSnapshot>(
-      future: FirebaseFirestore.instance.collection('user').doc(userId).get(),
+      future: FirebaseFirestore.instance.collection(BackendPoints.getUserData).doc(userId).get(),
       builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) return const Text("...");
+        if (snapshot.connectionState == ConnectionState.waiting) return const Text(".......");
         if (snapshot.hasData && snapshot.data!.exists) {
           var userData = snapshot.data!.data() as Map<String, dynamic>;
-          return Text(userData['name'] ?? 'عميل غير معروف', style: const TextStyle(fontWeight: FontWeight.bold));
+          return Text(userData['name'] ?? 'عميل غير معروف', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18));
         }
         return Text('عميل ID: ${userId.substring(0, 5)}...');
       },

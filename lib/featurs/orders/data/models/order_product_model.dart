@@ -7,6 +7,10 @@ class OrderProductModel extends OrderProductEntity {
     required super.imageUrl,
     required super.price,
     required super.quantity,
+    super.isPrescriptionRequired = false,
+    super.prescriptionImageUrl,
+    super.cancelledBy,
+    super.pharmacyName,
   });
 
   factory OrderProductModel.fromJson(Map<String, dynamic> json) {
@@ -16,6 +20,10 @@ class OrderProductModel extends OrderProductEntity {
       imageUrl: json['imageUrl']?.toString() ?? '',
       price: (json['price'] as num?)?.toDouble() ?? 0.0,
       quantity: (json['quantity'] as num?)?.toInt() ?? 0,
+      isPrescriptionRequired: json['isPrescriptionRequired'] as bool? ?? false,
+      prescriptionImageUrl: json['prescriptionImageUrl']?.toString(),
+      cancelledBy: json['cancelledBy']?.toString(),
+      pharmacyName: json['pharmacyName'],
     );
   }
 
@@ -26,6 +34,10 @@ class OrderProductModel extends OrderProductEntity {
       imageUrl: entity.imageUrl,
       price: entity.price,
       quantity: entity.quantity,
+      isPrescriptionRequired: entity.isPrescriptionRequired,
+      prescriptionImageUrl: entity.prescriptionImageUrl,
+      cancelledBy: entity.cancelledBy,
+      pharmacyName: entity.pharmacyName,
     );
   }
 
@@ -37,15 +49,23 @@ class OrderProductModel extends OrderProductEntity {
       'imageUrl': imageUrl,
       'price': price,
       'quantity': quantity,
+      'isPrescriptionRequired': isPrescriptionRequired,
+      if (prescriptionImageUrl != null) 'prescriptionImageUrl': prescriptionImageUrl,
+      if (cancelledBy != null) 'cancelledBy': cancelledBy,
+      if (pharmacyName != null) 'pharmacyName': pharmacyName,
     };
   }
 
   @override
   OrderProductEntity toEntity() => OrderProductEntity(
-    name: name,
-    code: code,
-    imageUrl: imageUrl,
-    price: price,
-    quantity: quantity,
-  );
+        name: name,
+        code: code,
+        imageUrl: imageUrl,
+        price: price,
+        quantity: quantity,
+        isPrescriptionRequired: isPrescriptionRequired,
+        prescriptionImageUrl: prescriptionImageUrl,
+        cancelledBy: cancelledBy,
+        pharmacyName: pharmacyName,
+      );
 }

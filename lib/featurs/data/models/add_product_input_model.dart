@@ -1,4 +1,5 @@
 
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:fruitesdashboard/featurs/add_product/domain/entities/add_product_intety.dart';
 import 'package:fruitesdashboard/featurs/data/models/review_model.dart';
 import 'package:image_picker/image_picker.dart';
@@ -13,7 +14,7 @@ class AddProductInputModel {
   final XFile? image;
   final num averageRating;
   final int ratingcount;
-  final int expirationDate;
+  final DateTime expirationDate;
   final num sellingcount;
   final int unitAmount;
   final List<ReviewModel> reviews;
@@ -23,6 +24,9 @@ class AddProductInputModel {
   final bool isAvailable;
   final String category; // تمت الإضافة هنا
   final bool isPrescriptionRequired;
+  final String pharmacyName;
+final double pharmacyLat;
+final double pharmacyLng;
 
   AddProductInputModel({
     required this.name,
@@ -44,6 +48,9 @@ class AddProductInputModel {
     this.isAvailable = true,
     required this.category, // تمت الإضافة هنا
       this.isPrescriptionRequired = false, // تمت الإضافة هنا
+    required this.pharmacyName,
+    required this.pharmacyLat,  
+    required this.pharmacyLng,  
   });
 
   factory AddProductInputModel.fromentity(AddProductIntety addProductIntety) {
@@ -68,6 +75,9 @@ class AddProductInputModel {
       isAvailable: addProductIntety.isAvailable,
       category: addProductIntety.category, // تمت الإضافة هنا
       isPrescriptionRequired: addProductIntety.isPrescriptionRequired,
+      pharmacyName: addProductIntety.pharmacyName,
+      pharmacyLat: addProductIntety.pharmacyLat,
+      pharmacyLng: addProductIntety.pharmacyLng,
     );
   }
   // 2️⃣ تحويل الـ Map القادم من Firestore إلى Model (حل مشكلة getProducts)
@@ -82,7 +92,9 @@ class AddProductInputModel {
       image: null, // لا يمكن استرجاع XFile من Firestore
       averageRating: json['averageRating'] ?? 0,
       ratingcount: json['ratingcount'] ?? 0,
-      expirationDate: json['expirationDate'] ?? 0,
+      expirationDate: json['expirationDate'] != null 
+          ? (json['expirationDate'] as Timestamp).toDate() // ✅ نفس شغل الـ Inventory
+          : DateTime.now(),
       unitAmount: json['unitAmount'] ?? 0,
       reviews: json['reviews'] != null
           ? (json['reviews'] as List)
@@ -96,6 +108,10 @@ class AddProductInputModel {
       isAvailable: json['isAvailable'] ?? true,
       category: json['category'] ?? '',
       isPrescriptionRequired: json['isPrescriptionRequired'] ?? false,
+      pharmacyName: json['pharmacyName'] ?? '',
+      pharmacyLat: json['pharmacyLat'] ?? 0.0,
+      pharmacyLng: json['pharmacyLng'] ?? 0.0,
+
     );
   }
 
@@ -110,7 +126,7 @@ class AddProductInputModel {
       'imageurl': imageurl,
       'averageRating': averageRating,
       'ratingcount': ratingcount,
-      'expirationDate': expirationDate,
+      'expirationDate': Timestamp.fromDate(expirationDate),
       'unitAmount': unitAmount,
       'reviews': reviews.map((e) => e.toJson()).toList(),
       'hasDiscount': hasDiscount,
@@ -119,6 +135,9 @@ class AddProductInputModel {
       'isAvailable': isAvailable,
       'category': category, // تمت الإضافة هنا
       'isPrescriptionRequired': isPrescriptionRequired,
+      'pharmacyName': pharmacyName,
+      'pharmacyLat': pharmacyLat,
+      'pharmacyLng': pharmacyLng,
     };
   }
   AddProductIntety toEntity() {
@@ -141,6 +160,9 @@ class AddProductInputModel {
       isAvailable: isAvailable,
       category: category,
       isPrescriptionRequired: isPrescriptionRequired,
+      pharmacyName: pharmacyName,
+      pharmacyLat: pharmacyLat,
+      pharmacyLng: pharmacyLng,
     );
   }
 }

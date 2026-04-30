@@ -13,3 +13,10 @@ final class AddProductError extends AddProductState {
   final String error;
   AddProductError({required this.error});
 }
+
+final class AddProductAccountDisabled extends AddProductState {
+  final String message;
+  AddProductAccountDisabled({
+    this.message = '403 Forbidden: تم تعطيل حسابك، يرجى التواصل مع الإدارة',
+  });
+}

@@ -8,7 +8,9 @@ import 'package:fruitesdashboard/core/utils/app_colors.dart';
 import 'package:fruitesdashboard/featurs/auth/presentation/cubits/login/pharmacy_login_cubit.dart';
 import 'package:fruitesdashboard/featurs/auth/presentation/cubits/login/pharmacy_login_state.dart';
 import 'package:fruitesdashboard/featurs/auth/presentation/cubits/roles/role_cubit.dart';
-import 'package:fruitesdashboard/featurs/dashboard/presentation/widgets/Dash_board_body.dart';
+import 'package:fruitesdashboard/featurs/dashboard/presentation/widgets/Dash_board_body.dart';// تأكد من صحة مسارات الـ SensorCubit والـ State في مشروعimport 'package:fruitesdashboard/featurs/sensors/presentation/cubits/cubit/sensor_cubit.dart';
+import 'package:fruitesdashboard/featurs/sensors/presentation/cubits/cubit/sensor_cubit.dart';
+import 'package:fruitesdashboard/featurs/sensors/presentation/cubits/cubit/sensor_state.dart';
 
 class DashBoardView extends StatelessWidget {
   const DashBoardView({super.key});
@@ -33,7 +35,7 @@ class DashBoardView extends StatelessWidget {
           centerTitle: true,
           automaticallyImplyLeading: false,
           actions: [
-            _buildRolePicker(context), // زر تبديل الصلاحيات
+            _buildRolePicker(context),
           ],
           title: StreamBuilder<DocumentSnapshot>(
             stream: FirebaseFirestore.instance
@@ -43,24 +45,39 @@ class DashBoardView extends StatelessWidget {
             builder: (context, snapshot) {
               if (snapshot.hasData && snapshot.data!.exists) {
                 var data = snapshot.data!.data() as Map<String, dynamic>;
-                return Column(
+                return Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text(
-                      "صيدلية ${data['pharmacyName'] ?? ""}",
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
+                    // زر وهمي أو مساحة فارغة لموازنة الـ AppBar لأن الـ Actions تأخذ مساحة جهة اليمين
+                    const SizedBox(width: 48), 
+                    
+                    Expanded(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            "صيدلية ${data['pharmacyName'] ?? ""}",
+                            style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          BlocBuilder<RoleCubit, UserRole>(
+                            builder: (context, role) => Text(
+                              _getRoleArabicName(role),
+                              style: const TextStyle(
+                                fontSize: 11,
+                                color: Colors.blueGrey,
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
-                    BlocBuilder<RoleCubit, UserRole>(
-                      builder: (context, role) => Text(
-                        _getRoleArabicName(role),
-                        style: const TextStyle(
-                          fontSize: 11,
-                          color: Colors.blueGrey,
-                        ),
-                      ),
-                    ),
+
+                    // عرض بيانات الحساس (درجة الحرارة والرطوبة)
+                    _buildLiveSensorWidget(),
                   ],
                 );
               }
@@ -70,6 +87,70 @@ class DashBoardView extends StatelessWidget {
         ),
         body: const DashBoardBody(),
       ),
+    );
+  }
+
+  /// ويدجيت عرض الحساس المختصرة في الـ AppBar
+  Widget _buildLiveSensorWidget() {
+    return BlocBuilder<SensorCubit, SensorState>(
+      builder: (context, state) {
+        if (state is SensorDataUpdated) {
+          // تغيير اللون للأحمر إذا زادت الحرارة عن 28 درجة مئوية (تنبيه للصيدلية)
+          final bool isWarning = state.sensorData.temperature > 28;
+          final Color statusColor = isWarning ? Colors.red : Colors.green;
+
+          return Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            decoration: BoxDecoration(
+              color: statusColor.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: statusColor.withOpacity(0.5), width: 1),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.thermostat, size: 14, color: statusColor),
+                    Text(
+                      "${state.sensorData.temperature.toStringAsFixed(1)}°",
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                        color: isWarning ? Colors.red : Colors.black87,
+                      ),
+                    ),
+                  ],
+                ),
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.water_drop, size: 14, color: Colors.blue),
+                    Text(
+                      "${state.sensorData.humidity.toStringAsFixed(0)}%",
+                      style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.black87,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          );
+        }
+        // حالة التحميل أو عدم وجود بيانات بعد
+        return const Padding(
+          padding: EdgeInsets.symmetric(horizontal: 8.0),
+          child: SizedBox(
+            width: 15,
+            height: 15,
+            child: CircularProgressIndicator(strokeWidth: 2, color: Colors.teal),
+          ),
+        );
+      },
     );
   }
 
@@ -95,23 +176,20 @@ class DashBoardView extends StatelessWidget {
   }
 
   void _verifyAndSetRole(BuildContext context, UserRole role) {
-    // إذا اختار وضع الموظف، لا نحتاج لرمز سري
     if (role == UserRole.employee) {
       context.read<RoleCubit>().setRole(role);
       return;
     }
 
     final controller = TextEditingController();
-
-    // تحديد الرمز المطلوب واللقب بناءً على الاختيار
     String requiredPin = "";
     String roleTitle = "";
 
     if (role == UserRole.manager) {
-      requiredPin = "1111"; // الرمز الخاص بالمدير العام
+      requiredPin = "1111";
       roleTitle = "المدير العام";
     } else if (role == UserRole.warehouseManager) {
-      requiredPin = "2222"; // الرمز الخاص بمدير المخزن
+      requiredPin = "2222";
       roleTitle = "مدير المخزن";
     }
 

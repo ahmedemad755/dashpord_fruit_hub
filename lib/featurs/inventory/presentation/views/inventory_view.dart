@@ -1,5 +1,6 @@
 // lib/featurs/inventory/presentation/views/inventory_view.dart
 
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -14,6 +15,9 @@ class InventoryView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+        final String currentPharmacyId =
+        FirebaseAuth.instance.currentUser?.uid ?? "";
+        context.read<InventoryCubit>().getInventory(currentPharmacyId);
     return Scaffold(
       backgroundColor: const Color(0xFFF1F5F9),
       appBar: _buildAppBar(),
@@ -190,6 +194,7 @@ class _StatCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+
     return Expanded(
       child: Container(
         padding: const EdgeInsets.all(16),
@@ -249,62 +254,64 @@ class _CategoryCard extends StatelessWidget {
   }
 
 List<Widget> _buildProductGroups(List<InventoryEntity> items) {
-    final Map<String, List<InventoryEntity>> products = {};
-    for (var i in items) {
-      products.putIfAbsent(i.productName, () => []).add(i);
-    }
-
-    return products.entries.map((entry) {
-      // فحص إذا كان أي باتش من هذا المنتج منتهي الصلاحية
-      final hasExpired = entry.value.any(
-        (i) => i.expiryDate != null && i.expiryDate!.isBefore(DateTime.now()),
-      );
-      
-      // حساب إجمالي الكمية لكل الباتشات لهذا المنتج
-      final totalQty = entry.value.fold(0, (sum, i) => sum + i.quantity);
-
-      return Container(
-        decoration: BoxDecoration(
-          border: hasExpired
-              ? const Border(right: BorderSide(color: Colors.red, width: 5))
-              : null,
-        ),
-        child: ExpansionTile(
-          // --- التعديل هنا: إضافة أيقونة الروشتة بجانب الاسم ---
-          leading: const Icon(Icons.medication_liquid, color: Colors.blueGrey, size: 20),
-          title: Row(
-            children: [
-              Expanded(
-                child: Text(
-                  entry.key,
-                  style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
-                ),
-              ),
-              // يمكنك هنا إضافة علامة تمييز إذا كان المنتج يتطلب روشتة
-              // إذا أضفت حقل isPrescriptionRequired لـ InventoryEntity مستقبلاً
-            ],
-          ),
-          subtitle: Row(
-            children: [
-              Text(
-                "الرصيد: $totalQty",
-                style: const TextStyle(fontSize: 11, color: Colors.grey),
-              ),
-              const SizedBox(width: 10),
-              if (hasExpired)
-                const Text(
-                  "⚠️ توجد كميات منتهية",
-                  style: TextStyle(fontSize: 10, color: Colors.red, fontWeight: FontWeight.bold),
-                ),
-            ],
-          ),
-          children: entry.value
-              .map((batch) => _BatchItemRow(item: batch))
-              .toList(),
-        ),
-      );
-    }).toList();
+  final Map<String, List<InventoryEntity>> products = {};
+  for (var i in items) {
+    products.putIfAbsent(i.productName, () => []).add(i);
   }
+
+  return products.entries.map((entry) {
+    final hasExpired = entry.value.any(
+      (i) => i.expiryDate != null && i.expiryDate!.isBefore(DateTime.now()),
+    );
+    
+    final totalQty = entry.value.fold(0, (sum, i) => sum + i.quantity);
+    // الحصول على رابط الصورة من أول باتش (Batch) للمنتج
+    final imageUrl = entry.value.first.productImageUrl;
+
+    return Container(
+      decoration: BoxDecoration(
+        border: hasExpired
+            ? const Border(right: BorderSide(color: Colors.red, width: 5))
+            : null,
+      ),
+      child: ExpansionTile(
+        // ✅ التعديل هنا: عرض صورة المنتج بدلاً من الأيقونة الثابتة
+        leading: Container(
+          width: 40,
+          height: 40,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(8),
+            color: Colors.blueGrey.withOpacity(0.1),
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(8),
+            child: (imageUrl != null && imageUrl.isNotEmpty)
+                ? Image.network(
+                    imageUrl,
+                    fit: BoxFit.cover,
+                    errorBuilder: (context, error, stackTrace) => 
+                        const Icon(Icons.medication, color: Colors.blueGrey),
+                  )
+                : const Icon(Icons.medication, color: Colors.blueGrey),
+          ),
+        ),
+        title: Text(
+          entry.key,
+          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+        ),
+        subtitle: Row(
+          children: [
+            Text("إجمالي الرصيد: $totalQty", style: const TextStyle(fontSize: 12)),
+            const SizedBox(width: 8),
+            if (hasExpired)
+              const Text("⚠️ تالف", style: TextStyle(color: Colors.red, fontSize: 11)),
+          ],
+        ),
+        children: entry.value.map((batch) => _BatchItemRow(item: batch)).toList(),
+      ),
+    );
+  }).toList();
+}
 }
 
 class _BatchItemRow extends StatelessWidget {
@@ -550,46 +557,51 @@ class _QuantityDialogState extends State<_QuantityDialog> {
           ),
         ],
       ),
-      actionsPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+ actionsPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
       actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context),
-          child: const Text("إلغاء", style: TextStyle(color: Colors.grey)),
-        ),
-        const SizedBox(width: 8),
-        Expanded(
-          child: ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: themeColor,
-              padding: const EdgeInsets.symmetric(vertical: 12),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-              elevation: 0,
+        // ✅ الحل هنا: إضافة Row ليكون هو الأب المباشر للـ Expanded
+        Row(
+          children: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text("إلغاء", style: TextStyle(color: Colors.grey)),
             ),
-            onPressed: () {
-              if (formKey.currentState!.validate()) {
-                final qty = int.parse(controller.text);
-                if (widget.isSupply) {
-                  widget.cubitContext
-                      .read<InventoryCubit>()
-                      .transferStockToProduct(widget.item, qty);
-                } else {
-                  widget.cubitContext
-                      .read<InventoryCubit>()
-                      .updateInventoryQuantity(widget.item, qty, false);
-                }
-                Navigator.pop(context);
-              }
-            },
-            child: const Text(
-              "تأكيد العملية",
-              style: TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.bold,
+            const SizedBox(width: 8),
+            Expanded(
+              child: ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: themeColor,
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  elevation: 0,
+                ),
+                onPressed: () {
+                  if (formKey.currentState!.validate()) {
+                    final qty = int.parse(controller.text);
+                    if (widget.isSupply) {
+                      widget.cubitContext
+                          .read<InventoryCubit>()
+                          .transferStockToProduct(widget.item, qty);
+                    } else {
+                      widget.cubitContext
+                          .read<InventoryCubit>()
+                          .updateInventoryQuantity(widget.item, qty, false);
+                    }
+                    Navigator.pop(context);
+                  }
+                },
+                child: const Text(
+                  "تأكيد العملية",
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
               ),
             ),
-          ),
+          ],
         ),
       ],
     );

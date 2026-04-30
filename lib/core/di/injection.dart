@@ -14,14 +14,17 @@ import 'package:fruitesdashboard/featurs/auth/presentation/cubits/login/pharmacy
 import 'package:fruitesdashboard/featurs/auth/presentation/cubits/roles/role_cubit.dart';
 import 'package:fruitesdashboard/featurs/auth/presentation/cubits/signup/pharmacy_signup_cubit.dart';
 import 'package:fruitesdashboard/featurs/auth/presentation/cubits/vereficationotp/vereficationotp_cubit.dart';
-import 'package:fruitesdashboard/featurs/banners/manger/cubit/banners_cubit.dart';
-import 'package:fruitesdashboard/featurs/data/repos/banners_repo.dart';
-import 'package:fruitesdashboard/featurs/data/repos/banners_repo_impl.dart';
 import 'package:fruitesdashboard/featurs/inventory/data/repos/inventory_repo_impl.dart';
 import 'package:fruitesdashboard/featurs/inventory/domain/repos/inventory_repo.dart';
 import 'package:fruitesdashboard/featurs/inventory/presentation/cubit/inventory_cubit.dart';
+import 'package:fruitesdashboard/featurs/offers/data/repos/offers_repo_impl.dart';
+import 'package:fruitesdashboard/featurs/offers/domain/repos/offers_repo.dart';
+import 'package:fruitesdashboard/featurs/offers/presentation/cubit/offers_cubit.dart';
 import 'package:fruitesdashboard/featurs/orders/data/domain/repos/order_repo.dart';
 import 'package:fruitesdashboard/featurs/orders/data/repos/orders_repo_impl.dart';
+import 'package:fruitesdashboard/featurs/sensors/data/repos/sensor_repo_imp.dart';
+import 'package:fruitesdashboard/featurs/sensors/domain/repos/Sensor_repository.dart';
+import 'package:fruitesdashboard/featurs/sensors/presentation/cubits/cubit/sensor_cubit.dart';
 import 'package:get_it/get_it.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -62,12 +65,6 @@ void setupGetIt() {
     () => OrdersRepoImpl(getIt.get<DatabaseService>()),
   );
 
-  getIt.registerLazySingleton<BannersRepo>(
-    () => BannersRepoImpl(
-      databaseService: getIt.get<DatabaseService>(),
-      storgeService: getIt.get<StorgeService>(),
-    ),
-  );
 
   // تسجيل Repository للمخزون
   getIt.registerLazySingleton<InventoryRepo>(
@@ -89,8 +86,6 @@ void setupGetIt() {
 
   getIt.registerFactory<OTPCubit>(() => OTPCubit(getIt<PharmacyAuthRepo>()));
 
-  getIt.registerFactory<BannersCubit>(() => BannersCubit(getIt<BannersRepo>()));
-
   // تسجيل Cubit للمخزون (Factory لأنه قد نحتاج نسخة جديدة)
   getIt.registerFactory<InventoryCubit>(
     () => InventoryCubit(getIt<InventoryRepo>()),
@@ -106,4 +101,29 @@ void setupGetIt() {
   );
 
   getIt.registerLazySingleton<RoleCubit>(() => RoleCubit());
+
+  // ---------------------------
+  //offers cubit and repo
+  // ---------------------------
+
+getIt.registerLazySingleton<OffersRepo>(
+  () => OffersRepoImpl(), 
+);
+
+getIt.registerFactory<OffersCubit>(
+  () => OffersCubit(getIt<OffersRepo>()),
+);
+  // ---------------------------
+  //sensors cubit and repo
+  // ---------------------------
+// 1. تسجيل الـ Repository (يفضل LazySingleton لأنه بيتعامل مع تيار بيانات مستمر)
+getIt.registerLazySingleton<SensorRepository>(
+  () => SensorRepositoryImpl(),
+);
+
+// 2. تسجيل الـ Cubit (استخدم Factory عشان تضمن نسخة جديدة مع كل دخول للشاشة)
+getIt.registerFactory<SensorCubit>(
+  () => SensorCubit(getIt<SensorRepository>()),
+);
+
 }

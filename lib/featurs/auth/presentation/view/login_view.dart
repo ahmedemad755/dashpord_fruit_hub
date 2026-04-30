@@ -124,6 +124,10 @@ class _LoginViewState extends State<LoginView> {
               showBar(context, state.message);
             }
           }
+
+          if (state is AccountDisabledLogout) {
+            showBar(context, state.message);
+          }
         },
         builder: (context, state) {
           return CustomProgresIndecatorHUD(

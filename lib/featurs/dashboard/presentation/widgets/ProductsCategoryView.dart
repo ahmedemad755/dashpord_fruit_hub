@@ -14,40 +14,47 @@ class ProductsCategoryView extends StatelessWidget {
         FirebaseAuth.instance.currentUser?.uid ?? "";
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFC), // خلفية أفتح وأكثر راحة
+      backgroundColor: const Color(0xFFF8FAFC),
       appBar: AppBar(
         elevation: 0,
         backgroundColor: AppColors.primaryColor,
         title: const Text(
-          "إدارة المخزون والعروض",
+          "  المنتجات المتاحه ف الصيدليه ",
           style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
         ),
         centerTitle: true,
       ),
-      body: StreamBuilder<QuerySnapshot>(
-        stream: FirebaseFirestore.instance
-            .collection(BackendPoints.getProducts)
-            .where('pharmacyId', isEqualTo: currentPharmacyId)
-            .snapshots(),
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(
-              child: CircularProgressIndicator(color: AppColors.primaryColor),
-            );
-          }
-          if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-            return _buildEmptyState();
-          }
+      body:// استبدل StreamBuilder القديم بده:
 
-          // تجميع المنتجات
-          Map<String, List<QueryDocumentSnapshot>> groupedProducts = {};
-          for (var doc in snapshot.data!.docs) {
-            final data = doc.data() as Map<String, dynamic>;
-            String category = data['category'] ?? "منتجات عامة";
-            groupedProducts.putIfAbsent(category, () => []).add(doc);
-          }
+StreamBuilder<QuerySnapshot>(
+  key: ValueKey(currentPharmacyId),
+  stream: FirebaseFirestore.instance
+      .collection(BackendPoints.getProducts)
+      .where('pharmacyId', isEqualTo: currentPharmacyId)
+      .snapshots(),
+  builder: (context, snapshot) {
+    if (snapshot.connectionState == ConnectionState.waiting) {
+      return const Center(child: CircularProgressIndicator(color: AppColors.primaryColor));
+    }
+    // الحل هنا: نستخدم البيانات اللي جاية من الـ snapshot مباشرة
+    // لو مفيش تغيير ظاهر، ده معناه إن الـ Stream بيعمل Cache
+    if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+      return _buildEmptyState();
+    }
 
-          return ListView.builder(
+    // هنا الـ snapshot.data!.docs هي اللي فيها التحديثات
+    // كل وثيقة (doc) جواها الداتا الجديدة
+    var docs = snapshot.data!.docs;
+
+    Map<String, List<QueryDocumentSnapshot>> groupedProducts = {};
+    for (var doc in docs) {
+      final data = doc.data() as Map<String, dynamic>;
+      String category = data['category'] ?? "منتجات عامة";
+      groupedProducts.putIfAbsent(category, () => []).add(doc);
+    }
+
+    return ListView.builder(
+      // ... باقي الكود كما هو
             padding: const EdgeInsets.all(16),
             itemCount: groupedProducts.keys.length,
             itemBuilder: (context, index) {
@@ -103,39 +110,60 @@ class ProductsCategoryView extends StatelessWidget {
     );
   }
 
-  Widget _buildProductItem(BuildContext context, QueryDocumentSnapshot doc) {
-    final data = doc.data() as Map<String, dynamic>;
-    bool hasDiscount = data['hasDiscount'] ?? false;
+Widget _buildProductItem(BuildContext context, QueryDocumentSnapshot doc) {
+  final data = doc.data() as Map<String, dynamic>;
+  bool hasDiscount = data['hasDiscount'] ?? false;
 
-    // --- منطق تنبيه المخزون ---
-    num amount = data['unitAmount'] ?? 0;
-    Color stockColor;
-    String stockStatus;
-
-    if (amount <= 5) {
-      stockColor = Colors.red; // خطر: نفاد الكمية
-      stockStatus = "مخزون منخفض جداً";
-    } else if (amount <= 10) {
-      stockColor = Colors.orange; // تحذير: شارف على الانتهاء
-      stockStatus = "بدأ ينفد";
-    } else {
-      stockColor = Colors.green; // آمن: الكمية متوفرة
-      stockStatus = "متوفر";
+  // 1. جلب تاريخ الانتهاء والتحقق من الحالة
+  DateTime? expiryDate;
+  if (data['expirationDate'] != null) {
+    if (data['expirationDate'] is Timestamp) {
+      expiryDate = (data['expirationDate'] as Timestamp).toDate();
     }
+  }
 
-    return Column(
-      children: [
-        const Divider(height: 1, indent: 70),
-        ListTile(
-          contentPadding: const EdgeInsets.symmetric(
-            horizontal: 20,
-            vertical: 10,
-          ),
+  // منطق التحقق من الانتهاء
+  final bool isExpired = expiryDate != null && expiryDate.isBefore(DateTime.now());
+
+  // 2. منطق الكمية والمخزون
+  final dynamic rawAmount = data['unitAmount'];
+  int amount = 0;
+  if (rawAmount != null) {
+    amount = (rawAmount is num) ? rawAmount.toInt() : int.tryParse(rawAmount.toString()) ?? 0;
+  }
+  if (amount < 0) amount = 0;
+
+  Color stockColor;
+  String stockStatus;
+
+  // الأولوية للون الأحمر لو منتهي الصلاحية بغض النظر عن الكمية
+  if (isExpired) {
+    stockColor = Colors.red;
+    stockStatus = "منتهي الصلاحية ⚠️";
+  } else if (amount <= 5) {
+    stockColor = Colors.red;
+    stockStatus = "مخزون منخفض جداً";
+  } else if (amount <= 10) {
+    stockColor = Colors.orange;
+    stockStatus = "بدأ ينفد";
+  } else {
+    stockColor = Colors.green;
+    stockStatus = "متوفر";
+  }
+
+  return Column(
+    key: ValueKey("${doc.id}_${amount}_$isExpired"),
+    children: [
+      const Divider(height: 1, indent: 70),
+      Container(
+        // إضافة خلفية خفيفة جداً لو المنتج منتهي
+        color: isExpired ? Colors.red.withOpacity(0.03) : null,
+        child: ListTile(
+          contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
           leading: Stack(
             children: [
               Container(
-                width: 50,
-                height: 50,
+                width: 50, height: 50,
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(10),
                   image: DecorationImage(
@@ -144,13 +172,11 @@ class ProductsCategoryView extends StatelessWidget {
                   ),
                 ),
               ),
-              // نقطة ملونة تشير للحالة فوق صورة المنتج
+              // نقطة الحالة الملونة
               Positioned(
-                right: 0,
-                top: 0,
+                right: 0, top: 0,
                 child: Container(
-                  width: 12,
-                  height: 12,
+                  width: 12, height: 12,
                   decoration: BoxDecoration(
                     color: stockColor,
                     shape: BoxShape.circle,
@@ -162,7 +188,12 @@ class ProductsCategoryView extends StatelessWidget {
           ),
           title: Text(
             data['name'] ?? "",
-            style: const TextStyle(fontWeight: FontWeight.w600),
+            style: TextStyle(
+              fontWeight: FontWeight.w600,
+              // شطب الاسم لو منتهي الصلاحية (اختياري)
+              decoration: isExpired ? TextDecoration.lineThrough : null,
+              color: isExpired ? Colors.red.shade900 : Colors.black,
+            ),
           ),
           subtitle: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -171,24 +202,36 @@ class ProductsCategoryView extends StatelessWidget {
                 children: [
                   Text(
                     "${data['price']} \$",
-                    style: const TextStyle(
-                      color: Colors.teal,
-                      fontWeight: FontWeight.bold,
-                    ),
+                    style: const TextStyle(color: Colors.teal, fontWeight: FontWeight.bold),
                   ),
                   const SizedBox(width: 8),
-                  // عرض حالة المخزون بنص صغير وملون
-                  Text(
-                    "($stockStatus: $amount)",
-                    style: TextStyle(
-                      color: stockColor,
-                      fontSize: 11,
-                      fontWeight: FontWeight.bold,
+                  Expanded(
+                    child: Text(
+                      "($stockStatus: $amount)",
+                      style: TextStyle(
+                        color: stockColor,
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                      ),
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ),
                 ],
               ),
-              if (hasDiscount)
+              // عرض تاريخ الانتهاء تحت السعر
+              if (expiryDate != null)
+                Padding(
+                  padding: const EdgeInsets.only(top: 2),
+                  child: Text(
+                    "تنتهي في: ${expiryDate.year}-${expiryDate.month.toString().padLeft(2, '0')}-${expiryDate.day.toString().padLeft(2, '0')}",
+                    style: TextStyle(
+                      color: isExpired ? Colors.red : Colors.grey,
+                      fontSize: 10,
+                      fontWeight: isExpired ? FontWeight.bold : FontWeight.normal,
+                    ),
+                  ),
+                ),
+              if (hasDiscount && !isExpired)
                 Padding(
                   padding: const EdgeInsets.only(top: 4),
                   child: Text(
@@ -198,40 +241,49 @@ class ProductsCategoryView extends StatelessWidget {
                 ),
             ],
           ),
-          trailing: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              IconButton(
-                icon: Icon(
-                  hasDiscount ? Icons.local_offer : Icons.local_offer_outlined,
-                  color: hasDiscount ? Colors.orange : Colors.grey.shade400,
-                ),
-                onPressed: () => _showDiscountDialog(
-                  context,
-                  doc.reference,
-                  hasDiscount,
-                  data['discountPercentage'],
-                ),
-              ),
-              IconButton(
-                icon: const Icon(
-                  Icons.edit_note_rounded,
-                  color: Colors.blueAccent,
-                ),
-                onPressed: () => Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) =>
-                        EditProductView(productId: doc.id, initialData: data),
-                  ),
-                ),
-              ),
-            ],
-          ),
+trailing: Row(
+  mainAxisSize: MainAxisSize.min,
+  children: [
+    // زر الخصم
+    IconButton(
+      icon: Icon(
+        hasDiscount ? Icons.local_offer : Icons.local_offer_outlined,
+        // تغيير اللون لرمادي باهت لو منتهي
+        color: isExpired 
+            ? Colors.grey.shade300 
+            : (hasDiscount ? Colors.orange : Colors.grey.shade400),
+      ),
+      // تعطيل الضغط (onPressed = null)
+      onPressed: isExpired ? null : () => _showDiscountDialog(
+        context,
+        doc.reference,
+        hasDiscount,
+        data['discountPercentage'],
+      ),
+    ),
+    
+    // زر التعديل
+    IconButton(
+      icon: Icon(
+        Icons.edit_note_rounded,
+        // تغيير اللون لرمادي لو منتهي
+        color: isExpired ? Colors.grey.shade300 : Colors.blueAccent,
+      ),
+      // تعطيل الانتقال لصفحة التعديل
+      onPressed: isExpired ? null : () => Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => EditProductView(productId: doc.id, initialData: data),
         ),
-      ],
-    );
-  }
+      ),
+    ),
+  ],
+),
+        ),
+      ),
+    ],
+  );
+}
 
   Widget _buildEmptyState() {
     return Center(
@@ -253,7 +305,6 @@ class ProductsCategoryView extends StatelessWidget {
     );
   }
 
-  // --- دالة الخصم تظل كما هي مع تحسين بسيط في الألوان ---
   void _showDiscountDialog(
     BuildContext context,
     DocumentReference ref,

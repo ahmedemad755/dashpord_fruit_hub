@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:fruitesdashboard/core/enums/user_enum.dart';
@@ -126,7 +127,7 @@ class DashBoardBody extends StatelessWidget {
                       title: "العروض",
                       icon: Icons.local_offer_rounded,
                       color: Colors.pink,
-                      route: AppRoutes.productsCategory,
+                      route: AppRoutes.offersManagement,
                       isEnabled: currentRole == UserRole.manager,
                     ),
                   ]),
@@ -155,33 +156,37 @@ class DashBoardBody extends StatelessWidget {
   }
 
   // دالة بناء كارت طلبات العملاء (الاستماع المباشر من Firestore)
-  Widget _buildOrdersCard(BuildContext context, UserRole currentRole) {
-    return StreamBuilder<QuerySnapshot>(
-      stream: FirebaseFirestore.instance
-          .collection('orders')
-          .where('status', isEqualTo: 'pending')
-          .snapshots(),
-      builder: (context, snapshot) {
-        String? badgeCount;
-        if (snapshot.hasData) {
-          int count = snapshot.data!.docs.length;
-          badgeCount = count > 0 ? count.toString() : null;
-        }
+Widget _buildOrdersCard(BuildContext context, UserRole currentRole) {
+  // 1. جلب معرف الصيدلية الحالية
+  final String currentPharmacyId = FirebaseAuth.instance.currentUser?.uid ?? "";
 
-        return _buildDashboardCard(
-          context,
-          title: "طلبات العملاء",
-          icon: Icons.shopping_basket_rounded,
-          color: Colors.orange,
-          route: AppRoutes.orders,
-          badge: badgeCount,
-          isEnabled:
-              currentRole !=
-              UserRole.warehouseManager, // الطلبات متاحة للجميع للمتابعة
-        );
-      },
-    );
-  }
+  return StreamBuilder<QuerySnapshot>(
+    stream: FirebaseFirestore.instance
+        .collection('orders')
+        .where('pharmacyId', isEqualTo: currentPharmacyId) // ✅ فلترة حسب الصيدلية
+        .where('status', isEqualTo: 'pending')            // ✅ فلترة الحالات المعلقة فقط
+        .snapshots(),
+    builder: (context, snapshot) {
+      String? badgeCount;
+      
+      if (snapshot.hasData) {
+        // الـ count الآن سيمثل فقط طلبات هذه الصيدلية المعلقة
+        int count = snapshot.data!.docs.length;
+        badgeCount = count > 0 ? count.toString() : null;
+      }
+
+      return _buildDashboardCard(
+        context,
+        title: "طلبات العملاء",
+        icon: Icons.shopping_basket_rounded,
+        color: Colors.orange,
+        route: AppRoutes.orders,
+        badge: badgeCount,
+        isEnabled: currentRole != UserRole.warehouseManager,
+      );
+    },
+  );
+}
 
   // ويدجت بناء الكارت الموحد
   Widget _buildDashboardCard(

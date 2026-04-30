@@ -621,7 +621,6 @@ class _DashboardAnalyticsViewState extends State<DashboardAnalyticsView> {
       ),
     );
   }
-
   Widget _buildTimeFilter() {
     final filters = ['Daily', 'Weekly', 'Monthly', 'Yearly'];
     return Row(

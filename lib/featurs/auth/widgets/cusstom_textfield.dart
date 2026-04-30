@@ -14,6 +14,9 @@ class CustomTextFormField extends StatelessWidget {
   final Widget? suffixIcon;
   final String? Function(String?)? validator;
 
+  final bool readOnly; 
+  final VoidCallback? onTap;
+
   const CustomTextFormField({
     super.key,
     required this.hintText,
@@ -27,6 +30,8 @@ class CustomTextFormField extends StatelessWidget {
     this.controller,
     this.suffixIcon,
     this.validator,
+    this.readOnly = false,
+    this.onTap,
   }) : keyboardType = textInputType ?? TextInputType.text;
 
   @override
@@ -40,6 +45,8 @@ class CustomTextFormField extends StatelessWidget {
           obscureText: obscureText,
           onSaved: onSaved,
           onChanged: onChanged,
+          readOnly: readOnly,
+          onTap: onTap,
           validator:
               validator ??
               (value) {

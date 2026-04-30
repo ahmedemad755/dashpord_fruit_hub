@@ -29,6 +29,9 @@ class PharmacySignupView extends StatefulWidget {
 class _PharmacySignupViewState extends State<PharmacySignupView> {
   final GlobalKey<FormState> formKey = GlobalKey<FormState>();
   AutovalidateMode autovalidateMode = AutovalidateMode.disabled;
+  final TextEditingController _addressController = TextEditingController();
+double? latitude;
+double? longitude;
 
   bool _isTermsAccepted = false;
   bool _isUploadingImage = false;
@@ -41,6 +44,22 @@ class _PharmacySignupViewState extends State<PharmacySignupView> {
   late String email, password, pharmacyName, phoneNumber, address;
   late String pharmacistName, pharmacistId, licenseNumber;
 
+
+Future<void> _pickLocationFromMap() async {
+  final result = await Navigator.of(context).pushNamed(AppRoutes.mapScreen);
+
+  if (result != null && result is Map<String, dynamic>) {
+    setState(() {
+      // تحديث النص في الحقل فوراً بالعنوان الفعلي
+      _addressController.text = result['address'] ?? "عنوان غير معروف";
+      
+      // تخزين القيم للإرسال للسيرفر
+      address = result['address'] ?? "";
+      latitude = result['lat'];
+      longitude = result['lng'];
+    });
+  }
+}
   Future<void> _pickAndUploadImage() async {
     final ImagePicker picker = ImagePicker();
     final XFile? image = await picker.pickImage(
@@ -82,6 +101,12 @@ class _PharmacySignupViewState extends State<PharmacySignupView> {
       return;
     }
 
+    // التعديل هنا يا هندسة: لازم نتأكد إن اللوكيشن اتحدد
+  if (latitude == null || longitude == null) {
+    showBar(context, 'الرجاء تحديد موقع الصيدلية من الخريطة');
+    return;
+  }
+
     if (_uploadedImageUrl == null) {
       showBar(context, 'الرجاء رفع صورة ترخيص الصيدلية (مطلوب)');
       return;
@@ -101,6 +126,9 @@ class _PharmacySignupViewState extends State<PharmacySignupView> {
         pharmacistId: pharmacistId,
         licenseNumber: licenseNumber,
         nationalId: nationalId,
+         lat: latitude!, 
+      lng: longitude!,
+
       );
     } else {
       setState(() => autovalidateMode = AutovalidateMode.always);
@@ -186,10 +214,17 @@ class _PharmacySignupViewState extends State<PharmacySignupView> {
                       textInputType: TextInputType.phone,
                       onSaved: (value) => phoneNumber = value!,
                     ),
-                    CustomTextFormField(
-                      hintText: 'عنوان الصيدلية بالتفصيل',
-                      onSaved: (value) => address = value!,
-                    ),
+ CustomTextFormField(
+  controller: _addressController, // اربطه بالكنترولر
+  hintText: 'عنوان الصيدلية بالتفصيل',
+  readOnly: true, // خليه ميكتبش بإيده عشان نضمن إنه اختار من الخريطة
+  onTap: _pickLocationFromMap, // يفتح الخريطة لما يضغط على الحقل
+  suffixIcon: IconButton(
+    icon: const Icon(Icons.map_outlined, color: Colors.blue),
+    onPressed: _pickLocationFromMap,
+  ),
+  onSaved: (value) => address = value!,
+),
                     const SizedBox(height: 20),
                     const Text(
                       "المستندات القانونية",

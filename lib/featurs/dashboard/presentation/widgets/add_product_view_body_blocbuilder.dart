@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:fruitesdashboard/core/function_helper/build_error_bar.dart';
+import 'package:fruitesdashboard/core/function_helper/on_generate_routing.dart';
 import 'package:fruitesdashboard/featurs/add_product/presentation/manger/cubit/add_product_cubit.dart';
 import 'package:fruitesdashboard/featurs/dashboard/presentation/widgets/add_product_body.dart';
 import 'package:fruitesdashboard/featurs/dashboard/presentation/widgets/customProgressLoading.dart';
@@ -25,6 +26,13 @@ class AddProductViewBodyBlocbuilder extends StatelessWidget {
           Navigator.pop(context); // العودة للخلف بعد النجاح
         } else if (state is AddProductError) {
           buildBar(context, state.error, backgroundColor: Colors.red);
+        } else if (state is AddProductAccountDisabled) {
+          buildBar(context, state.message, backgroundColor: Colors.red);
+          Navigator.pushNamedAndRemoveUntil(
+            context,
+            AppRoutes.login,
+            (route) => false,
+          );
         }
       },
       builder: (context, state) {

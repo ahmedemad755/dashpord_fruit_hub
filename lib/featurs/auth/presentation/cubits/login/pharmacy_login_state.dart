@@ -36,6 +36,17 @@ class LogoutLoading extends PharmacyLoginState {}
 
 class LogoutSuccess extends PharmacyLoginState {}
 
+class AccountDisabledLogout extends PharmacyLoginState {
+  final String message;
+
+  const AccountDisabledLogout({
+    this.message = 'عذراً، تم تعطيل حسابك، يرجى التواصل مع الإدارة',
+  });
+
+  @override
+  List<Object?> get props => [message];
+}
+
 class LogoutFailure extends PharmacyLoginState {
   final String message;
   const LogoutFailure(this.message);

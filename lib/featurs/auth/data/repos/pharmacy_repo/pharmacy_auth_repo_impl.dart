@@ -34,6 +34,8 @@ class PharmacyAuthRepoImpl extends PharmacyAuthRepo {
     required String pharmacistId,
     required String licenseNumber,
     required String nationalId,
+  required double lat,
+  required double lng,
   }) async {
     User? user;
     try {
@@ -56,6 +58,9 @@ class PharmacyAuthRepoImpl extends PharmacyAuthRepo {
         status: 'pending',
         role: 'pharmacy',
         createdAt: DateTime.now(),
+        lat: lat,
+        lng: lng,
+        
       );
 
       await databaseService.addData(

@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:fruitesdashboard/core/services/account_status_service.dart';
 import 'package:fruitesdashboard/core/services/shared_prefs_singelton.dart';
 import 'package:fruitesdashboard/featurs/auth/data/repos/pharmacy_repo/pharmacy_auth_repo.dart';
 import 'package:fruitesdashboard/featurs/auth/domain/entites/pharmacy_entity.dart';
@@ -10,6 +11,7 @@ import 'package:fruitesdashboard/featurs/auth/presentation/cubits/login/pharmacy
 
 class PharmacyLoginCubit extends Cubit<PharmacyLoginState> {
   final PharmacyAuthRepo pharmacyAuthRepo;
+  final AccountStatusService _accountStatusService = AccountStatusService();
   StreamSubscription<DocumentSnapshot>? _pharmacySubscription;
 
   PharmacyLoginCubit(this.pharmacyAuthRepo) : super(PharmacyLoginInitial());
@@ -34,6 +36,10 @@ class PharmacyLoginCubit extends Cubit<PharmacyLoginState> {
       if (pharmacyDoc.exists) {
         // صيدلي حقيقي
         final pharmacyData = PharmacyEntity.fromJson(pharmacyDoc.data()!);
+        if (AccountStatusService.isDisabledStatus(pharmacyData.status)) {
+          await forceLogoutDisabledAccount();
+          return;
+        }
         await Prefs.setString("pharmacy_status", pharmacyData.status);
         await Prefs.setBool("isLoggedIn", true);
         emit(PharmacyLoginSuccess(pharmacyEntity: pharmacyData));
@@ -73,6 +79,16 @@ class PharmacyLoginCubit extends Cubit<PharmacyLoginState> {
     }
   }
 
+  Future<void> forceLogoutDisabledAccount() async {
+    await _pharmacySubscription?.cancel();
+    _pharmacySubscription = null;
+    await _accountStatusService.forceLogoutDisabledAccount();
+
+    if (!isClosed) {
+      emit(const AccountDisabledLogout());
+    }
+  }
+
   void watchPharmacyStatus(String uId) {
     // إلغاء أي اشتراك قديم لتجنب تكرار العمليات
     _pharmacySubscription?.cancel();
@@ -81,7 +97,18 @@ class PharmacyLoginCubit extends Cubit<PharmacyLoginState> {
         .collection('pharmacies')
         .doc(uId)
         .snapshots() // 👈 السر هنا: snapshots بدلاً من get
-        .listen((snapshot) {
+        .listen((snapshot) async {
+          if (!snapshot.exists || snapshot.data() == null) {
+            await forceLogoutDisabledAccount();
+            return;
+          }
+
+          final rawStatus = snapshot.data()!['status']?.toString() ?? '';
+          if (AccountStatusService.isDisabledStatus(rawStatus)) {
+            await forceLogoutDisabledAccount();
+            return;
+          }
+
           if (snapshot.exists && snapshot.data() != null) {
             final pharmacyData = PharmacyEntity.fromJson(snapshot.data()!);
 

@@ -23,6 +23,8 @@ class PharmacySignupCubit extends Cubit<PharmacySignupState> {
     required String pharmacistId,
     required String licenseNumber,
     required String nationalId,
+      required double lat,
+  required double lng,
   }) async {
     emit(PharmacySignupLoading());
 
@@ -37,6 +39,8 @@ class PharmacySignupCubit extends Cubit<PharmacySignupState> {
       pharmacistId: pharmacistId,
       licenseNumber: licenseNumber,
       nationalId: nationalId,
+      lat: lat,
+      lng: lng,
     );
 
     result.fold((failure) => emit(PharmacySignupFailure(failure.message)), (

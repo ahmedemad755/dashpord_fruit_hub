@@ -6,6 +6,7 @@ class InventoryModel extends InventoryEntity {
     required super.id,
     required super.productId,
     required super.productName,
+    required super.pharmacyId,
     super.productImageUrl,
     required super.quantity,
     required super.reorderLevel,
@@ -18,45 +19,49 @@ class InventoryModel extends InventoryEntity {
     required super.damaged,
   });
 
-  factory InventoryModel.fromDocument(DocumentSnapshot doc) {
+factory InventoryModel.fromDocument(DocumentSnapshot doc) {
     final data = doc.data() as Map<String, dynamic>;
     return InventoryModel(
       id: doc.id,
-      productId: data['product_id'] ?? '',
-      productName: data['product_name'] ?? '',
-      productImageUrl: data['product_image_url'], // يمكن أن يكون null
+      // التعديل هنا: شلنا الـ _ وخليناها CamelCase زي الفايربيز
+      productId: data['productId'] ?? '', 
+      productName: data['productName'] ?? '', // كانت productname (خطأ)
+      productImageUrl: data['productImageUrl'], // كانت productimage_url (خطأ)
+      pharmacyId: data['pharmacyId'] ?? '',
       quantity: (data['quantity'] ?? 0).toInt(),
-      reorderLevel: (data['reorder_level'] ?? 0).toInt(),
-      // التعامل مع الـ Timestamp للـ Nullable expiry_date
-      expiryDate: data['expiry_date'] != null
-          ? (data['expiry_date'] as Timestamp).toDate()
+      reorderLevel: (data['reorderLevel'] ?? 0).toInt(), // شلنا الـ _
+      
+      expiryDate: data['expiryDate'] != null
+          ? (data['expiryDate'] as Timestamp).toDate()
           : null,
-      costPrice: (data['cost_price'] ?? 0.0).toDouble(),
-      sellingPrice: (data['selling_price'] ?? 0.0).toDouble(),
-      category: data['category'] ?? "تصنيف عام", // ✅ جلب التصنيف
-      stockIn: (data['stock_in'] ?? 0).toInt(),
-      stockOut: (data['stock_out'] ?? 0).toInt(),
-      damaged: (data['damaged'] ?? 0).toInt(),
+          
+      costPrice: (data['costPrice'] ?? 0.0).toDouble(), // شلنا الـ _
+      sellingPrice: (data['sellingPrice'] ?? 0.0).toDouble(), // شلنا الـ _
+      category: data['category'] ?? "تصنيف عام",
+      
+      stockIn: (data['stockIn'] ?? 0).toInt(), // شلنا الـ _
+      stockOut: (data['stockOut'] ?? 0).toInt(), // شلنا الـ _
+      damaged: (data['damaged'] ?? 0).toInt(), // شلنا الـ _
     );
   }
 
-  @override
+@override
   Map<String, dynamic> toMap() {
     return {
-      'product_id': productId,
-      'product_name': productName,
-      'product_image_url': productImageUrl,
+      'productId': productId,
+      'productName': productName,
+      'pharmacyId': pharmacyId,
+      'productImageUrl': productImageUrl,
       'quantity': quantity,
-      'reorder_level': reorderLevel,
-      // تحويل DateTime إلى Timestamp لـ Firestore
-      'expiry_date': expiryDate != null
+      'reorderLevel': reorderLevel,
+      'expiryDate': expiryDate != null
           ? Timestamp.fromDate(expiryDate!)
           : null,
-      'cost_price': costPrice,
-      'selling_price': sellingPrice,
+      'costPrice': costPrice,
+      'sellingPrice': sellingPrice,
       'category': category,
-      'stock_in': stockIn,
-      'stock_out': stockOut,
+      'stockIn': stockIn,
+      'stockOut': stockOut,
       'damaged': damaged,
     };
   }
