@@ -96,7 +96,9 @@ class DashBoardView extends StatelessWidget {
       builder: (context, state) {
         if (state is SensorDataUpdated) {
           // تغيير اللون للأحمر إذا زادت الحرارة عن 28 درجة مئوية (تنبيه للصيدلية)
-          final bool isWarning = state.sensorData.temperature > 28;
+          final sensorCubit = context.read<SensorCubit>();
+          final bool isWarning =
+              state.sensorData.temperature > sensorCubit.maxSafeTemperature;
           final Color statusColor = isWarning ? Colors.red : Colors.green;
 
           return Container(
@@ -106,37 +108,61 @@ class DashBoardView extends StatelessWidget {
               borderRadius: BorderRadius.circular(8),
               border: Border.all(color: statusColor.withOpacity(0.5), width: 1),
             ),
-            child: Column(
+            child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Row(
+                Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(Icons.thermostat, size: 14, color: statusColor),
-                    Text(
-                      "${state.sensorData.temperature.toStringAsFixed(1)}°",
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold,
-                        color: isWarning ? Colors.red : Colors.black87,
-                      ),
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.thermostat, size: 14, color: statusColor),
+                        Text(
+                          "${state.sensorData.temperature.toStringAsFixed(1)}°",
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                            color: isWarning ? Colors.red : Colors.black87,
+                          ),
+                        ),
+                      ],
+                    ),
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(
+                          Icons.water_drop,
+                          size: 14,
+                          color: Colors.blue,
+                        ),
+                        Text(
+                          "${state.sensorData.humidity.toStringAsFixed(0)}%",
+                          style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.black87,
+                          ),
+                        ),
+                      ],
                     ),
                   ],
                 ),
-                Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Icon(Icons.water_drop, size: 14, color: Colors.blue),
-                    Text(
-                      "${state.sensorData.humidity.toStringAsFixed(0)}%",
-                      style: const TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.black87,
-                      ),
+                if (sensorCubit.isAlarmPlaying) ...[
+                  const SizedBox(width: 6),
+                  SizedBox(
+                    width: 32,
+                    height: 32,
+                    child: IconButton(
+                      tooltip: "إيقاف الإنذار",
+                      padding: EdgeInsets.zero,
+                      iconSize: 18,
+                      color: Colors.red,
+                      icon: const Icon(Icons.volume_off),
+                      onPressed: sensorCubit.stopAlertSound,
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ],
             ),
           );

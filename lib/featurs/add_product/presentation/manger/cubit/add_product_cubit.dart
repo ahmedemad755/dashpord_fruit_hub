@@ -1,7 +1,7 @@
 // ignore: depend_on_referenced_packages
 import 'package:bloc/bloc.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/foundation.dart' show kIsWeb, debugPrint;
 import 'package:flutter_image_compress/flutter_image_compress.dart';
 import 'package:fruitesdashboard/core/repos/imag_repo/imag_repo.dart';
 import 'package:fruitesdashboard/core/repos/product_repo/product_repo.dart';
@@ -21,8 +21,6 @@ class AddProductCubit extends Cubit<AddProductState> {
 
   final ImagRepo imagRepo;
   final ProductRepo productRepo;
-  // Kept because this cubit is registered with it and other code may still rely
-  // on the constructor shape.
   // ignore: unused_field
   final InventoryRepo _inventoryRepo;
   final AccountStatusService _accountStatusService = AccountStatusService();
@@ -48,7 +46,7 @@ class AddProductCubit extends Cubit<AddProductState> {
 
       return result != null ? XFile(result.path) : null;
     } catch (e) {
-      print("Compression Error: $e");
+      debugPrint("Compression Error: $e");
       return null;
     }
   }
@@ -71,6 +69,9 @@ class AddProductCubit extends Cubit<AddProductState> {
         return true;
       } on AccountDisabledException catch (e) {
         emit(AddProductAccountDisabled(message: e.message));
+        return false;
+      } catch (e) {
+        emit(AddProductError(error: "فشل التحقق من صلاحيات الحساب: ${e.toString()}"));
         return false;
       }
     }
@@ -106,6 +107,7 @@ class AddProductCubit extends Cubit<AddProductState> {
             addProductIntety.isPrescriptionRequired;
         productJson['imageurl'] = imageUrl;
         productJson['global_image_url'] = imageUrl;
+        productJson['updatedAt'] = FieldValue.serverTimestamp(); // تمت مزامنتها الآن كلياً مع الـ Bulk
 
         batch.set(productRef, productJson, SetOptions(merge: true));
         batch.set(pharmacyProductRef, productJson, SetOptions(merge: true));
@@ -145,7 +147,6 @@ class AddProductCubit extends Cubit<AddProductState> {
     }
 
     XFile imageToUpload = addProductIntety.image!;
-    emit(AddProductError(error: "جاري ضغط الصورة..."));
 
     final compressedXFile = await _compressImage(addProductIntety.image!);
     if (compressedXFile != null) {

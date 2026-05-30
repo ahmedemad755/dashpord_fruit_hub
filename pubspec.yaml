@@ -40,6 +40,8 @@ dependencies:
   file_picker: ^10.3.3
   xml: ^6.6.1
   http: ^1.6.0
+  just_audio: ^0.10.5
+  universal_html: ^2.3.0
   
 
 dev_dependencies:
@@ -50,3 +52,5 @@ dev_dependencies:
 flutter:
   uses-material-design: true
   generate: true
+  assets:
+    - lib/core/assets/sounds/mixkit-classic-alarm-995.wav

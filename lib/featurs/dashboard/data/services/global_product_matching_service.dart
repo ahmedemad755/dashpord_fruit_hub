@@ -1,14 +1,37 @@
 import 'dart:convert';
 import 'dart:typed_data';
-
-import 'package:archive/archive.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:excel/excel.dart';
-import 'package:flutter/foundation.dart';
-import 'package:fruitesdashboard/core/const/const.dart';
-import 'package:fruitesdashboard/core/di/injection.dart';
-import 'package:fruitesdashboard/core/repos/imag_repo/imag_repo.dart';
 import 'package:xml/xml.dart';
+import 'package:archive/archive.dart';
+
+// استيراد الكلاسات الحقيقية والأساسية من مشروعك لمنع التكرار والتعارض
+import '../../../../core/repos/imag_repo/imag_repo.dart';
+import '../../../../core/services/account_status_service.dart';
+
+const bool kIsWeb = bool.fromEnvironment('dart.library.js_util');
+const String supabaseUrl = 'https://your-supabase-url.supabase.co'; 
+
+bool _parseFlexibleBool(Object? value) {
+  if (value == null) return false;
+  if (value is bool) return value;
+  if (value is num) return value != 0;
+
+  final normalized =
+      value.toString().trim().toLowerCase().replaceAll('"', '').replaceAll("'", "");
+  if (normalized.isEmpty) return false;
+
+  return normalized == 'true' ||
+      normalized == '1' ||
+      normalized == 'yes' ||
+      normalized == 'y' ||
+      normalized == 'required' ||
+      normalized == 'مطلوب' ||
+      normalized == 'نعم' ||
+      normalized == 'requires_prescription' ||
+      normalized == 'prescription_required' ||
+      normalized == 'required_prescription';
+}
 
 class GlobalProductData {
   const GlobalProductData({
@@ -17,6 +40,7 @@ class GlobalProductData {
     required this.category,
     required this.description,
     required this.imageUrl,
+    required this.isPrescriptionRequired,
     required this.rawData,
   });
 
@@ -25,6 +49,7 @@ class GlobalProductData {
   final String category;
   final String description;
   final String imageUrl;
+  final bool isPrescriptionRequired;
   final Map<String, dynamic> rawData;
 
   factory GlobalProductData.fromFirestore(
@@ -52,6 +77,14 @@ class GlobalProductData {
         'imageurl',
         'global_image_url',
       ]),
+      isPrescriptionRequired: _parseFlexibleBool(
+        data['isPrescriptionRequired'] ??
+            data['is_prescription_required'] ??
+            data['isPrescription'] ??
+            data['requiresPrescription'] ??
+            data['prescriptionRequired'] ??
+            data['prescription'],
+      ),
       rawData: data,
     );
   }
@@ -71,6 +104,8 @@ class BulkProductMatch {
     required this.globalProduct,
     required this.expirationDate,
     required this.rowNumber,
+    required this.hasFoundHeaderForImage, 
+    required this.hasFoundHeaderForName,  
   });
 
   final String barcode;
@@ -85,16 +120,24 @@ class BulkProductMatch {
   final GlobalProductData? globalProduct;
   final DateTime expirationDate;
   final int rowNumber;
+  final bool hasFoundHeaderForImage;
+  final bool hasFoundHeaderForName;
 
-  String get productName => _preferSheetValue(name, globalProduct?.name ?? '');
-  String get productCategory =>
-      _preferSheetValue(category, globalProduct?.category ?? '');
-  String get productDescription =>
-      _preferSheetValue(description, globalProduct?.description ?? '');
-  String get productImageUrl =>
-      _preferSheetValue(imageUrl, globalProduct?.imageUrl ?? '');
+  String get productName => _preferGlobalOrSheet(name, globalProduct?.name ?? '', hasFoundHeaderForName);
+  String get productCategory => _preferGlobalOrSheet(category, globalProduct?.category ?? '', hasFoundHeaderForName);
+  String get productDescription => _preferGlobalOrSheet(description, globalProduct?.description ?? '', hasFoundHeaderForName);
+  String get productImageUrl => _preferGlobalOrSheet(imageUrl, globalProduct?.imageUrl ?? '', hasFoundHeaderForImage);
+  bool get productIsPrescriptionRequired => globalProduct?.isPrescriptionRequired ?? isPrescriptionRequired;
 
   bool get isMatched => globalProduct != null || productName.isNotEmpty;
+
+  static String _preferGlobalOrSheet(String sheetValue, String globalValue, bool hasExplicitHeader) {
+    if (!hasExplicitHeader && globalValue.trim().isNotEmpty) {
+      return globalValue.trim();
+    }
+    final value = sheetValue.trim();
+    return value.isNotEmpty ? value : globalValue.trim();
+  }
 
   BulkProductMatch copyWith({
     String? barcode,
@@ -109,6 +152,8 @@ class BulkProductMatch {
     GlobalProductData? globalProduct,
     DateTime? expirationDate,
     int? rowNumber,
+    bool? hasFoundHeaderForImage,
+    bool? hasFoundHeaderForName,
   }) {
     return BulkProductMatch(
       barcode: barcode ?? this.barcode,
@@ -119,30 +164,28 @@ class BulkProductMatch {
       category: category ?? this.category,
       description: description ?? this.description,
       imageUrl: imageUrl ?? this.imageUrl,
-      isPrescriptionRequired:
-          isPrescriptionRequired ?? this.isPrescriptionRequired,
+      isPrescriptionRequired: isPrescriptionRequired ?? this.isPrescriptionRequired,
       globalProduct: globalProduct ?? this.globalProduct,
       expirationDate: expirationDate ?? this.expirationDate,
       rowNumber: rowNumber ?? this.rowNumber,
+      hasFoundHeaderForImage: hasFoundHeaderForImage ?? this.hasFoundHeaderForImage,
+      hasFoundHeaderForName: hasFoundHeaderForName ?? this.hasFoundHeaderForName,
     );
-  }
-
-  static String _preferSheetValue(String sheetValue, String fallback) {
-    final value = sheetValue.trim();
-    return value.isNotEmpty ? value : fallback.trim();
   }
 }
 
 class GlobalProductMatchingService {
   GlobalProductMatchingService({
-    FirebaseFirestore? firestore,
-    ImagRepo? imageRepo,
-  })  : _firestore = firestore ?? FirebaseFirestore.instance,
-        _imageRepo = imageRepo ??
-            (getIt.isRegistered<ImagRepo>() ? getIt<ImagRepo>() : null);
+    required FirebaseFirestore firestore,
+    required ImagRepo imageRepo,
+    required AccountStatusService accountStatusService,
+  })  : _firestore = firestore,
+        _imageRepo = imageRepo,
+        _accountStatusService = accountStatusService;
 
   final FirebaseFirestore _firestore;
-  final ImagRepo? _imageRepo;
+  final ImagRepo _imageRepo;
+  final AccountStatusService _accountStatusService;
 
   Future<GlobalProductData?> findByBarcode(String barcode) async {
     final normalizedBarcode = barcode.trim();
@@ -175,7 +218,7 @@ class GlobalProductMatchingService {
         readDate: _cellToDate,
       );
     } catch (_) {
-      final rows = _readRowsFromXlsx(bytes);
+      final rows = _readRowsFromCsvOrXlsxHandmade(bytes);
       if (rows.isEmpty) return const [];
 
       return _matchExcelRows(
@@ -195,107 +238,53 @@ class GlobalProductMatchingService {
     required num Function(T row, int index) readNum,
     required DateTime? Function(T row, int index) readDate,
   }) async {
-    final headerMap = looksLikeHeader(rows.first)
+    final hasHeader = looksLikeHeader(rows.first);
+    final headerMap = hasHeader
         ? _buildHeaderMap(rows.first, readString)
         : const <String, int>{};
-    final startIndex = headerMap.isNotEmpty ? 1 : 0;
+    
+    final hasFoundHeaderForImage = _hasAnyHeader(headerMap, const ['imageurl', 'image', 'صورة']);
+    final hasFoundHeaderForName = _hasAnyHeader(headerMap, const ['name', 'اسم']);
+
+    final startIndex = hasHeader ? 1 : 0;
     final matches = <BulkProductMatch>[];
 
     for (var index = startIndex; index < rows.length; index++) {
       final row = rows[index];
-      final barcode = _readByHeader(
-        row,
-        headerMap,
-        readString,
-        const ['barcode', 'bar code', 'code', 'كود', 'باركود'],
-        0,
-      );
+      
+      final barcode = _readByHeader(row, headerMap, readString, const ['barcode', 'code', 'كود', 'باركود'], 0);
       if (barcode.isEmpty) continue;
 
-      final name = _readByHeader(
-        row,
-        headerMap,
-        readString,
-        const ['name', 'product name', 'product_name', 'productname', 'اسم'],
-        -1,
-      );
-      final category = _readByHeader(
-        row,
-        headerMap,
-        readString,
-        const ['category', 'category name', 'category_name', 'تصنيف'],
-        -1,
-      );
-      final description = _readByHeader(
-        row,
-        headerMap,
-        readString,
-        const ['description', 'desc', 'وصف'],
-        -1,
-      );
-      final imageUrl = _readByHeader(
-        row,
-        headerMap,
-        readString,
-        const [
-          'image_url',
-          'image url',
-          'imageurl',
-          'image',
-          'global_image_url',
-          'productimageurl',
-          'product image url',
-          'صورة',
-        ],
-        -1,
-      );
+      final price = _readNumByHeader(row, headerMap, readNum, const ['price', 'السعر'], 1);
+      final cost = _readNumByHeader(row, headerMap, readNum, const ['cost', 'التكلفة'], 2);
+      final quantity = _readNumByHeader(row, headerMap, readNum, const ['quantity', 'qty', 'الكمية'], 3).toInt();
+      
+      final expirationDate = _readDateByHeader(row, headerMap, readDate, const ['expirationdate', 'expirydate', 'تاريخ'], 4) ?? DateTime.now();
+
+      final name = _readByHeader(row, headerMap, readString, const ['name', 'اسم'], -1);
+      final category = _readByHeader(row, headerMap, readString, const ['category', 'تصنيف'], -1);
+      final description = _readByHeader(row, headerMap, readString, const ['description', 'وصف'], -1);
+      final imageUrl = _readByHeader(row, headerMap, readString, const ['imageurl', 'image', 'صورة'], -1);
       final prescriptionText = _readByHeader(
         row,
         headerMap,
         readString,
         const [
-          'is_prescription',
-          'is prescription',
-          'isprescription',
-          'is_prescription_required',
-          'is prescription required',
           'isprescriptionrequired',
+          'is prescription required',
+          'requiresprescription',
+          'requires prescription',
+          'prescriptionrequired',
+          'prescription required',
           'prescription',
           'روشتة',
         ],
         -1,
       );
 
-      final price = _readNumByHeader(
-        row,
-        headerMap,
-        readNum,
-        const ['price', 'sellingprice', 'selling price', 'السعر'],
-        headerMap.isEmpty ? 1 : -1,
-      );
-      final cost = _readNumByHeader(
-        row,
-        headerMap,
-        readNum,
-        const ['cost', 'costprice', 'cost price', 'التكلفة'],
-        headerMap.isEmpty ? 2 : -1,
-      );
-      final quantity = _readNumByHeader(
-        row,
-        headerMap,
-        readNum,
-        const ['quantity', 'qty', 'unitamount', 'unit amount', 'الكمية'],
-        headerMap.isEmpty ? 3 : -1,
-      ).toInt();
-      final expirationDate = _readDateByHeader(
-            row,
-            headerMap,
-            readDate,
-            const ['expirationdate', 'expiration date', 'expirydate', 'expiry date'],
-            headerMap.isEmpty ? 4 : -1,
-          ) ??
-          DateTime.now();
       final globalProduct = await findByBarcode(barcode);
+      final isPrescriptionRequired =
+          globalProduct?.isPrescriptionRequired ?? _parseBool(prescriptionText);
 
       matches.add(BulkProductMatch(
         barcode: barcode,
@@ -306,14 +295,23 @@ class GlobalProductMatchingService {
         category: category,
         description: description,
         imageUrl: imageUrl,
-        isPrescriptionRequired: _parseBool(prescriptionText),
+        isPrescriptionRequired: isPrescriptionRequired, 
         expirationDate: expirationDate,
         globalProduct: globalProduct,
         rowNumber: index + 1,
+        hasFoundHeaderForImage: hasFoundHeaderForImage,
+        hasFoundHeaderForName: hasFoundHeaderForName,
       ));
     }
 
     return matches;
+  }
+
+  bool _hasAnyHeader(Map<String, int> headerMap, List<String> aliases) {
+    for (final alias in aliases) {
+      if (headerMap.containsKey(_normalizeHeader(alias))) return true;
+    }
+    return false;
   }
 
   Map<String, int> _buildHeaderMap<T>(
@@ -321,22 +319,19 @@ class GlobalProductMatchingService {
     String Function(T row, int index) readString,
   ) {
     final headers = <String, int>{};
-    for (var index = 0; index < 80; index++) {
-      final header = _normalizeHeader(readString(row, index));
-      if (header.isNotEmpty) {
-        headers[header] = index;
+    for (var index = 0; index < 30; index++) {
+      final rawHeader = readString(row, index);
+      if (rawHeader.isEmpty) continue;
+      
+      final normalized = _normalizeHeader(rawHeader);
+      if (normalized.isNotEmpty) {
+        headers[normalized] = index;
       }
     }
     return headers;
   }
 
-  String _readByHeader<T>(
-    T row,
-    Map<String, int> headerMap,
-    String Function(T row, int index) readString,
-    List<String> aliases,
-    int fallbackIndex,
-  ) {
+  String _readByHeader<T>(T row, Map<String, int> headerMap, String Function(T row, int index) readString, List<String> aliases, int fallbackIndex) {
     for (final alias in aliases) {
       final index = headerMap[_normalizeHeader(alias)];
       if (index != null) return readString(row, index).trim();
@@ -345,13 +340,7 @@ class GlobalProductMatchingService {
     return readString(row, fallbackIndex).trim();
   }
 
-  num _readNumByHeader<T>(
-    T row,
-    Map<String, int> headerMap,
-    num Function(T row, int index) readNum,
-    List<String> aliases,
-    int fallbackIndex,
-  ) {
+  num _readNumByHeader<T>(T row, Map<String, int> headerMap, num Function(T row, int index) readNum, List<String> aliases, int fallbackIndex) {
     for (final alias in aliases) {
       final index = headerMap[_normalizeHeader(alias)];
       if (index != null) return readNum(row, index);
@@ -360,13 +349,7 @@ class GlobalProductMatchingService {
     return readNum(row, fallbackIndex);
   }
 
-  DateTime? _readDateByHeader<T>(
-    T row,
-    Map<String, int> headerMap,
-    DateTime? Function(T row, int index) readDate,
-    List<String> aliases,
-    int fallbackIndex,
-  ) {
+  DateTime? _readDateByHeader<T>(T row, Map<String, int> headerMap, DateTime? Function(T row, int index) readDate, List<String> aliases, int fallbackIndex) {
     for (final alias in aliases) {
       final index = headerMap[_normalizeHeader(alias)];
       if (index != null) return readDate(row, index);
@@ -385,6 +368,12 @@ class GlobalProductMatchingService {
     final matchedRows = matches.where((match) => match.isMatched).toList();
     if (matchedRows.isEmpty) return;
 
+    if (pharmacyId.trim().isEmpty) {
+      throw Exception('تعذر تحديد الصيدلية لعملية الرفع الجماعي');
+    }
+
+    await _accountStatusService.ensureAccountCanWrite(pharmacyId);
+
     WriteBatch batch = _firestore.batch();
     var operationCount = 0;
     final uploadedImageUrls = <String, String>{};
@@ -398,13 +387,12 @@ class GlobalProductMatchingService {
 
     for (final match in matchedRows) {
       final productDocId = '${match.barcode}_$pharmacyId';
-      final imageUrl = await _siphonImageToSupabase(
-        match.productImageUrl,
-        uploadedImageUrls,
-      );
+      
+      final imageUrl = await _siphonImageToSupabase(match.productImageUrl, uploadedImageUrls);
       final productName = match.productName;
       final productCategory = match.productCategory;
       final productDescription = match.productDescription;
+
       final productData = {
         'name': productName,
         'price': match.price,
@@ -424,7 +412,7 @@ class GlobalProductMatchingService {
         'pharmacyId': pharmacyId,
         'isAvailable': true,
         'category': productCategory,
-        'isPrescriptionRequired': match.isPrescriptionRequired,
+        'isPrescriptionRequired': match.productIsPrescriptionRequired,
         'pharmacyName': pharmacyName,
         'pharmacyLat': pharmacyLat,
         'pharmacyLng': pharmacyLng,
@@ -432,13 +420,8 @@ class GlobalProductMatchingService {
         'updatedAt': FieldValue.serverTimestamp(),
       };
 
-      final pharmacyProductRef = _firestore
-          .collection('pharmacies')
-          .doc(pharmacyId)
-          .collection('products')
-          .doc(match.barcode);
-      final legacyProductRef =
-          _firestore.collection('products').doc(productDocId);
+      final pharmacyProductRef = _firestore.collection('pharmacies').doc(pharmacyId).collection('products').doc(match.barcode);
+      final legacyProductRef = _firestore.collection('products').doc(productDocId);
       final inventoryRef = _firestore.collection('inventory').doc(productDocId);
 
       batch.set(pharmacyProductRef, productData, SetOptions(merge: true));
@@ -466,30 +449,18 @@ class GlobalProductMatchingService {
     }
   }
 
-  Future<String> _siphonImageToSupabase(
-    String imageUrl,
-    Map<String, String> uploadedImageUrls,
-  ) async {
+  Future<String> _siphonImageToSupabase(String imageUrl, Map<String, String> uploadedImageUrls) async {
     final normalizedUrl = imageUrl.trim();
-    if (normalizedUrl.isEmpty || _isSupabaseStorageUrl(normalizedUrl)) {
-      return normalizedUrl;
-    }
-
-    // Browser apps cannot read bytes from many external CDNs because of CORS.
-    // Keep the original URL instead of failing the whole bulk import.
-    if (kIsWeb) {
-      return normalizedUrl;
-    }
+    if (normalizedUrl.isEmpty || _isSupabaseStorageUrl(normalizedUrl)) return normalizedUrl;
+    if (kIsWeb) return normalizedUrl;
 
     final cachedUrl = uploadedImageUrls[normalizedUrl];
     if (cachedUrl != null) return cachedUrl;
 
-    final imageRepo = _imageRepo;
-    if (imageRepo == null) {
-      return normalizedUrl;
-    }
-
-    final uploadResult = await imageRepo.uploadImageFromUrl(normalizedUrl);
+    // استدعاء الميثود المباشرة من الـ Repo الفعلي لمشروعك بعد حل الـ Result wrapper إذا وُجد
+    final uploadResult = await _imageRepo.uploadImageFromUrl(normalizedUrl);
+    
+    // التعامل الذكي مع الـ Either (FP Dart) إذا كانت الميثود ترجع Left/Right
     return uploadResult.fold(
       (failure) => normalizedUrl,
       (supabaseUrl) {
@@ -500,71 +471,98 @@ class GlobalProductMatchingService {
   }
 
   bool _isSupabaseStorageUrl(String imageUrl) {
-    return imageUrl.startsWith(supabaseUrl) &&
-        imageUrl.contains('/storage/v1/object/public/');
+    return imageUrl.startsWith(supabaseUrl) && imageUrl.contains('/storage/v1/object/public/');
   }
 
   bool _looksLikeHeader(List<Data?> row) {
-    final firstCell = _cellToString(row, 0).toLowerCase();
-    return firstCell == 'barcode' ||
-        firstCell == 'bar code' ||
-        firstCell == 'code' ||
-        firstCell == 'كود' ||
-        firstCell == 'باركود';
+    if (row.isEmpty) return false;
+    final firstCell = _cleanCellValue(row[0]?.value).toLowerCase();
+    return firstCell == 'barcode' || firstCell == 'code' || firstCell == 'كود' || firstCell == 'باركود';
   }
 
   bool _stringRowLooksLikeHeader(List<String> row) {
-    final firstCell = _stringCell(row, 0).toLowerCase();
-    return firstCell == 'barcode' ||
-        firstCell == 'bar code' ||
-        firstCell == 'code' ||
-        firstCell == 'كود' ||
-        firstCell == 'باركود';
+    if (row.isEmpty) return false;
+    final firstCell = row[0].trim().toLowerCase();
+    return firstCell == 'barcode' || firstCell == 'code' || firstCell == 'كود' || firstCell == 'باركود';
   }
 
   String _cellToString(List<Data?> row, int index) {
     if (index >= row.length) return '';
-    final value = row[index]?.value;
-    return switch (value) {
-      null => '',
-      TextCellValue() => value.value.toString().trim(),
-      IntCellValue() => value.value.toString(),
-      DoubleCellValue() => value.value.toStringAsFixed(0),
-      BoolCellValue() => value.value.toString(),
-      FormulaCellValue() => value.formula.trim(),
-      DateCellValue() => value.toString(),
-      DateTimeCellValue() => value.toString(),
-      TimeCellValue() => value.toString(),
-    };
+    return _cleanCellValue(row[index]?.value);
+  }
+
+  String _cleanCellValue(dynamic rawValue) {
+    if (rawValue == null) return '';
+    
+    if (rawValue is TextCellValue) return rawValue.value.toString().trim();
+    if (rawValue is IntCellValue) return rawValue.value.toString();
+    if (rawValue is DoubleCellValue) return rawValue.value.toString();
+    if (rawValue is BoolCellValue) return rawValue.value.toString();
+    if (rawValue is DateCellValue) return rawValue.toString().trim();
+    if (rawValue is DateTimeCellValue) return rawValue.toString().trim();
+    
+    final cellStr = rawValue.toString();
+    if (cellStr.contains('_value:')) {
+      final match = RegExp(r'_value:\s*([^\},]+)').firstMatch(cellStr);
+      if (match != null && match.group(1) != null) {
+        return match.group(1)!.trim();
+      }
+    }
+    return cellStr.trim();
   }
 
   DateTime? _cellToDate(List<Data?> row, int index) {
     if (index >= row.length) return null;
     final value = row[index]?.value;
-    return switch (value) {
-      null => null,
-      DateCellValue() => DateTime.tryParse(value.toString().trim()),
-      DateTimeCellValue() => DateTime.tryParse(value.toString().trim()),
-      TextCellValue() => _parseDate(value.value.toString()),
-      FormulaCellValue() => DateTime.tryParse(value.formula.trim()),
-      _ => null,
-    };
+    if (value == null) return null;
+    if (value is DateCellValue || value is DateTimeCellValue) {
+      return DateTime.tryParse(value.toString().trim());
+    }
+    return _parseDate(_cleanCellValue(value));
   }
 
   num _cellToNum(List<Data?> row, int index) {
     if (index >= row.length) return 0;
     final value = row[index]?.value;
-    return switch (value) {
-      null => 0,
-      IntCellValue() => value.value,
-      DoubleCellValue() => value.value,
-      TextCellValue() => _parseNum(value.value.toString()),
-      FormulaCellValue() => num.tryParse(value.formula.trim()) ?? 0,
-      BoolCellValue() => value.value ? 1 : 0,
-      DateCellValue() => 0,
-      DateTimeCellValue() => 0,
-      TimeCellValue() => 0,
-    };
+    if (value == null) return 0;
+    if (value is IntCellValue) return value.value;
+    if (value is DoubleCellValue) return value.value;
+    if (value is BoolCellValue) return value.value ? 1 : 0;
+    return _parseNum(_cleanCellValue(value));
+  }
+
+  List<List<String>> _readRowsFromCsvOrXlsxHandmade(Uint8List bytes) {
+    try {
+      final rawContent = utf8.decode(bytes, allowMalformed: true);
+      if (!rawContent.contains('xl/')) {
+        final lines = const LineSplitter().convert(rawContent);
+        final csvRows = <List<String>>[];
+
+        for (final line in lines) {
+          if (line.trim().isEmpty) continue;
+          
+          final cells = <String>[];
+          final buffer = StringBuffer();
+          var inQuotes = false;
+
+          for (var i = 0; i < line.length; i++) {
+            final char = line[i];
+            if (char == '"') {
+              inQuotes = !inQuotes; 
+            } else if (char == ',' && !inQuotes) {
+              cells.add(buffer.toString().trim());
+              buffer.clear();
+            } else {
+              buffer.write(char);
+            }
+          }
+          cells.add(buffer.toString().trim());
+          csvRows.add(cells);
+        }
+        return csvRows;
+      }
+    } catch (_) {}
+    return _readRowsFromXlsx(bytes);
   }
 
   List<List<String>> _readRowsFromXlsx(Uint8List bytes) {
@@ -579,18 +577,10 @@ class GlobalProductMatchingService {
     final firstSheet = _firstOrNull(workbook.findAllElements('sheet'));
     if (firstSheet == null) return const [];
 
-    final relationId = firstSheet.getAttribute(
-          'id',
-          namespace: 'http://schemas.openxmlformats.org/officeDocument/2006/relationships',
-        ) ??
-        firstSheet.getAttribute('r:id');
+    final relationId = firstSheet.getAttribute('id', namespace: 'http://schemas.openxmlformats.org/officeDocument/2006/relationships') ?? firstSheet.getAttribute('r:id');
     if (relationId == null) return const [];
 
-    final relationship = _firstOrNull(
-      rels
-          .findAllElements('Relationship')
-          .where((node) => node.getAttribute('Id') == relationId),
-    );
+    final relationship = _firstOrNull(rels.findAllElements('Relationship').where((node) => node.getAttribute('Id') == relationId));
     final target = relationship?.getAttribute('Target');
     if (target == null) return const [];
 
@@ -608,9 +598,7 @@ class GlobalProductMatchingService {
 
       for (final cellNode in rowNode.findElements('c')) {
         final cellRef = cellNode.getAttribute('r');
-        final columnIndex = cellRef == null
-            ? fallbackColumnIndex
-            : _cellRefColumnIndex(cellRef);
+        final columnIndex = cellRef == null ? fallbackColumnIndex : _cellRefColumnIndex(cellRef);
 
         while (row.length <= columnIndex) {
           row.add('');
@@ -624,14 +612,12 @@ class GlobalProductMatchingService {
         parsedRows.add(row);
       }
     }
-
     return parsedRows;
   }
 
   String? _archiveText(Archive archive, String path) {
     final file = archive.findFile(path);
-    if (file == null) return null;
-    if (!file.isFile) return null;
+    if (file == null || !file.isFile) return null;
     file.decompress();
     return utf8.decode(file.content as List<int>, allowMalformed: true);
   }
@@ -661,12 +647,9 @@ class GlobalProductMatchingService {
     final rawValue = _firstOrNull(cellNode.findElements('v'))?.innerText ?? '';
     if (type == 's') {
       final index = int.tryParse(rawValue);
-      if (index == null || index < 0 || index >= sharedStrings.length) {
-        return '';
-      }
+      if (index == null || index < 0 || index >= sharedStrings.length) return '';
       return sharedStrings[index].trim();
     }
-
     return rawValue.trim();
   }
 
@@ -684,13 +667,9 @@ class GlobalProductMatchingService {
     return row[index].trim();
   }
 
-  num _stringCellToNum(List<String> row, int index) {
-    return _parseNum(_stringCell(row, index));
-  }
+  num _stringCellToNum(List<String> row, int index) => _parseNum(_stringCell(row, index));
 
-  DateTime? _stringCellToDate(List<String> row, int index) {
-    return _parseDate(_stringCell(row, index));
-  }
+  DateTime? _stringCellToDate(List<String> row, int index) => _parseDate(_stringCell(row, index));
 
   num _parseNum(String value) {
     final normalized = value.trim().replaceAll(',', '');
@@ -709,22 +688,12 @@ class GlobalProductMatchingService {
     return DateTime(1899, 12, 30).add(Duration(days: serial.floor()));
   }
 
-  bool _parseBool(String value) {
-    final normalized = value.trim().toLowerCase();
-    return normalized == 'true' ||
-        normalized == '1' ||
-        normalized == 'yes' ||
-        normalized == 'y' ||
-        normalized == 'required' ||
-        normalized == 'مطلوب' ||
-        normalized == 'نعم';
+  bool _parseBool(Object? value) {
+    return _parseFlexibleBool(value);
   }
 
   String _normalizeHeader(String value) {
-    return value
-        .trim()
-        .toLowerCase()
-        .replaceAll(RegExp(r'[\s_\-]+'), '');
+    return value.trim().toLowerCase().replaceAll(RegExp(r'[\s_\-]+'), '');
   }
 
   T? _firstOrNull<T>(Iterable<T> values) {

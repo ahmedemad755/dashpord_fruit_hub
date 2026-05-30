@@ -8,6 +8,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:fruitesdashboard/core/const/dashboardPageTemplate.dart';
+import 'package:fruitesdashboard/core/di/injection.dart';
 import 'package:fruitesdashboard/core/function_helper/widgets/custom_button.dart';
 import 'package:fruitesdashboard/core/services/shared_prefs_singelton.dart';
 import 'package:fruitesdashboard/featurs/add_product/domain/entities/add_product_intety.dart';
@@ -55,7 +56,7 @@ class AddProductBody extends StatefulWidget {
 class _AddProductBodyState extends State<AddProductBody> {
   final GlobalKey<FormState> formKey = GlobalKey<FormState>();
   final GlobalProductMatchingService _matchingService =
-      GlobalProductMatchingService();
+      getIt<GlobalProductMatchingService>();
 
   AutovalidateMode autovalidateMode = AutovalidateMode.disabled;
   Timer? _barcodeDebounce;
@@ -940,4 +941,3 @@ class _AddProductBodyState extends State<AddProductBody> {
         },
       );
 }
-

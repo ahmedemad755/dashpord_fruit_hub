@@ -1,19 +1,22 @@
+import 'package:cloud_firestore/cloud_firestore.dart'; // 💡 إضافة استيراد الـ Firestore إن لم يكن موجوداً
 import 'package:fruitesdashboard/core/repos/imag_repo/imag_repo.dart';
 import 'package:fruitesdashboard/core/repos/imag_repo/imag_repo_imp.dart';
 import 'package:fruitesdashboard/core/repos/product_repo/product_repo.dart';
 import 'package:fruitesdashboard/core/repos/product_repo/product_repo_imp.dart';
+import 'package:fruitesdashboard/core/services/account_status_service.dart'; // 💡 استيراد خدمة حالة الحساب
 import 'package:fruitesdashboard/core/services/cloud_fire_store_service.dart';
 import 'package:fruitesdashboard/core/services/database_service.dart';
 import 'package:fruitesdashboard/core/services/firebase_auth_service.dart';
 import 'package:fruitesdashboard/core/services/storge_service.dart';
 import 'package:fruitesdashboard/core/services/supabase_storge.dart';
-import 'package:fruitesdashboard/featurs/add_product/presentation/manger/cubit/add_product_cubit.dart'; // 💡 إضافة استيراد الـ Cubit
+import 'package:fruitesdashboard/featurs/add_product/presentation/manger/cubit/add_product_cubit.dart'; 
 import 'package:fruitesdashboard/featurs/auth/data/repos/pharmacy_repo/pharmacy_auth_repo.dart';
 import 'package:fruitesdashboard/featurs/auth/data/repos/pharmacy_repo/pharmacy_auth_repo_impl.dart';
 import 'package:fruitesdashboard/featurs/auth/presentation/cubits/login/pharmacy_login_cubit.dart';
 import 'package:fruitesdashboard/featurs/auth/presentation/cubits/roles/role_cubit.dart';
 import 'package:fruitesdashboard/featurs/auth/presentation/cubits/signup/pharmacy_signup_cubit.dart';
 import 'package:fruitesdashboard/featurs/auth/presentation/cubits/vereficationotp/vereficationotp_cubit.dart';
+import 'package:fruitesdashboard/featurs/dashboard/data/services/global_product_matching_service.dart';
 import 'package:fruitesdashboard/featurs/inventory/data/repos/inventory_repo_impl.dart';
 import 'package:fruitesdashboard/featurs/inventory/domain/repos/inventory_repo.dart';
 import 'package:fruitesdashboard/featurs/inventory/presentation/cubit/inventory_cubit.dart';
@@ -32,7 +35,7 @@ final getIt = GetIt.instance;
 
 void setupGetIt() {
   // ---------------------------
-  // 1️⃣ Services
+  // 1️⃣ Core Infrastructure Services
   // ---------------------------
   getIt.registerSingleton<SupabaseClient>(Supabase.instance.client);
   getIt.registerSingleton<StorgeService>(SupabaseStorgeService());
@@ -43,7 +46,22 @@ void setupGetIt() {
   getIt.registerSingleton<DatabaseService>(fireStoreService);
 
   // ---------------------------
-  // 2️⃣ Repositories (Pharmacy Auth)
+  // 2️⃣ App Business Services
+  // ---------------------------
+  // تسجيل خدمة التحقق من حالة الحساب لضمان توفرها عالمياً
+  getIt.registerLazySingleton<AccountStatusService>(() => AccountStatusService());
+
+  // ✅ تسجيل خدمة الرفع الجماعي والمطابقة مع تمرير الاعتمادات المطلوبة من الـ getIt
+  getIt.registerLazySingleton<GlobalProductMatchingService>(
+    () => GlobalProductMatchingService(
+      firestore: FirebaseFirestore.instance,
+      imageRepo: getIt<ImagRepo>(),
+      accountStatusService: getIt<AccountStatusService>(),
+    ),
+  );
+
+  // ---------------------------
+  // 3️⃣ Repositories (Pharmacy Auth)
   // ---------------------------
   getIt.registerSingleton<PharmacyAuthRepo>(
     PharmacyAuthRepoImpl(
@@ -53,7 +71,7 @@ void setupGetIt() {
   );
 
   // ---------------------------
-  // 3️⃣ Other Repositories
+  // 4️⃣ Other Repositories
   // ---------------------------
   getIt.registerFactory<ProductRepo>(
     () => ProductRepoImp(fireStoreService: getIt.get<FireStoreService>()),
@@ -65,65 +83,60 @@ void setupGetIt() {
     () => OrdersRepoImpl(getIt.get<DatabaseService>()),
   );
 
-
   // تسجيل Repository للمخزون
   getIt.registerLazySingleton<InventoryRepo>(
     () => InventoryRepoImpl(getIt<DatabaseService>()),
   );
 
   // ---------------------------
-  // 4️⃣ Cubits
+  // 5️⃣ Cubits
   // ---------------------------
-
   getIt.registerFactory<PharmacySignupCubit>(
     () => PharmacySignupCubit(getIt<PharmacyAuthRepo>()),
   );
 
-  // ✅ تم التعديل هنا من Singleton إلى Factory لحل مشكلة "Cannot emit after close"
+  // تفادي مشكلة "Cannot emit after close" عن طريق الـ Factory
   getIt.registerFactory<PharmacyLoginCubit>(
     () => PharmacyLoginCubit(getIt<PharmacyAuthRepo>()),
   );
 
   getIt.registerFactory<OTPCubit>(() => OTPCubit(getIt<PharmacyAuthRepo>()));
 
-  // تسجيل Cubit للمخزون (Factory لأنه قد نحتاج نسخة جديدة)
+  // تسجيل Cubit للمخزون
   getIt.registerFactory<InventoryCubit>(
     () => InventoryCubit(getIt<InventoryRepo>()),
   );
 
-  // 💡 تسجيل الـ Cubit الخاص بإضافة المنتج مع الـ Repository الجديد للمخزون
+  // تسجيل الـ Cubit الخاص بإضافة المنتج مع الـ Repository الخاص بالمخزون
   getIt.registerFactory<AddProductCubit>(
     () => AddProductCubit(
       getIt<ImagRepo>(),
       getIt<ProductRepo>(),
-      getIt<InventoryRepo>(), // تمرير المخزون هنا
+      getIt<InventoryRepo>(), 
     ),
   );
 
   getIt.registerLazySingleton<RoleCubit>(() => RoleCubit());
 
   // ---------------------------
-  //offers cubit and repo
+  // Offers Cubit and Repo
   // ---------------------------
+  getIt.registerLazySingleton<OffersRepo>(
+    () => OffersRepoImpl(), 
+  );
 
-getIt.registerLazySingleton<OffersRepo>(
-  () => OffersRepoImpl(), 
-);
+  getIt.registerFactory<OffersCubit>(
+    () => OffersCubit(getIt<OffersRepo>()),
+  );
 
-getIt.registerFactory<OffersCubit>(
-  () => OffersCubit(getIt<OffersRepo>()),
-);
   // ---------------------------
-  //sensors cubit and repo
+  // Sensors Cubit and Repo
   // ---------------------------
-// 1. تسجيل الـ Repository (يفضل LazySingleton لأنه بيتعامل مع تيار بيانات مستمر)
-getIt.registerLazySingleton<SensorRepository>(
-  () => SensorRepositoryImpl(),
-);
+  getIt.registerLazySingleton<SensorRepository>(
+    () => SensorRepositoryImpl(),
+  );
 
-// 2. تسجيل الـ Cubit (استخدم Factory عشان تضمن نسخة جديدة مع كل دخول للشاشة)
-getIt.registerFactory<SensorCubit>(
-  () => SensorCubit(getIt<SensorRepository>()),
-);
-
+  getIt.registerFactory<SensorCubit>(
+    () => SensorCubit(getIt<SensorRepository>()),
+  );
 }
