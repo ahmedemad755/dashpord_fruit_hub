@@ -22,7 +22,7 @@ class FetchOrdersCubit extends Cubit<FetchOrdersState> {
     _streamSubscription = ordersRepo.fetchOrders().listen(
       (result) {
         result.fold(
-          (failure) => emit(FetchOrdersFailure(failure.message)),
+          (failure) => emit(FetchOrdersFailure(failure?.message ?? "حدث خطأ غير معروف")),
           (orders) => emit(FetchOrdersSuccess(orders: orders)),
         );
       },

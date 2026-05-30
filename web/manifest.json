@@ -1,6 +1,6 @@
 {
-    "name": "fruitesdashboard",
-    "short_name": "fruitesdashboard",
+    "name": "pharmago_dashboard",
+    "short_name": "pharmago_dashboard",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",
